@@ -1,8 +1,17 @@
 # Project name
 ## OUR PLAN
 
+tool that uses a link of a twitter profile as an input and then scrapes data of two-way interactions between users. 
+Tool should also scrape account attributes such as size (how many followers) and for how long they have been on twitter. (Jakob)
+
+This is then converted into a .csv data set which can be used as an edgelist 
+
+This data set is used as an input for an R script that spits out some basic descriptives and visualizations of the network as well as a warning message if the output or input is bullshit
+
+-> make it in a way that people can also only use part of the tool. Like only scraping the data or importing data and only making visualizations. 
+-> make the tool modular so different forms of data other than interactions can be added later or more visualizations can be done later
+
 ## Team Members
-This section is a list of team members, and possibly links to GitHub/GitLab/LinkedIn/personal blog pages for members.
 
 ## Tool Description
 This sections discusses the purpose and motivation for the tool, and how it addresses a tool need you've identified.
