@@ -1,4 +1,5 @@
 # Project name
+## OUR PLAN
 
 ## Team Members
 This section is a list of team members, and possibly links to GitHub/GitLab/LinkedIn/personal blog pages for members.
