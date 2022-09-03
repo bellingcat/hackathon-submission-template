@@ -2,50 +2,60 @@ import subprocess
 import json
 from typing import List, Tuple, Set, Dict
 import csv
+from snscrape.base import ScraperException
 from tqdm import tqdm
 import snscrape.modules.twitter as st
 import multiprocessing
+import itertools
+import pandas as pd
 
 
 
-# def iterate(user, edges):
-#     mentions = twitter_user(user)
-#    for i in mentions:
-#         edges.append((user, i))
-#     return mentions
 
-
-# edges = []
-
-# mentions = iterate(start_user, edges)
-# visited_users = set(mentions)
-# for i in mentions:
-#     newer_mentions = iterate(i, edges)
-
-#     for x in tqdm(newer_mentions):
-#         print("level2")
-#         if x not in visited_users:
-#             even_newer_mentions = iterate(x, edges)
-
-#     visited_users.update(set(newer_mentions))
-
-
-def get_user_tweets(user: str) -> Tuple[List[int], List[str]]:
+def get_user_tweets(user: str):
 
 
 
     print(user)
-    tweets = list(st.TwitterUserScraper(user).get_items())
+    sns_user = st.TwitterUserScraper(user)
+    try:
+        sns_generator = sns_user.get_items()
+    except ScraperException:
+        return None
+    tweets = itertools.islice(sns_generator , 50)
 
     tweet_ids = map(lambda x: x.id, tweets)
 
     raw_mentions = map(lambda x: x.mentionedUsers, tweets)
     mentions = []
-    for i in raw_mentions:
-        if i and i[0]:
-            mentions.append(i[0].username)
+    try:
+        for i in raw_mentions:
+            if i and i[0]:
+                mentions.append(i[0].username)
+    except ScraperException:
+        return None
+    try:
+        user_result = sns_user._get_entity()
 
-    return (list(tweet_ids), mentions)
+    except KeyError:
+        user_info = {"potentially_banned" : True}
+    else:
+        if user_result:
+            user_info = {"id" : user_result.id,
+                        "display name" : user_result.displayname,
+                        "description" : user_result.description,
+                        "verified" : user_result.verified,
+                        "potentially_banned" : False,
+                        "#followers" : user_result.followersCount,
+                        "#posts" : user_result.statusesCount,
+                        "#friends" : user_result.friendsCount,
+                        "#favourites" : user_result.favouritesCount,
+                        "location" : user_result.location
+                        }
+        else:
+            user_info = {"potentially_banned" : True}
+
+    return (list(tweet_ids), mentions, user_info)
 
 
 def get_replies(tweet: int) -> List[str]:
@@ -68,13 +78,17 @@ def iteration(args):
     """
     user, user_dict = args[0], args[1]
     dict_update = get_user_tweets(user)
+
+    if not dict_update:
+        return None
+
     new_users = dict_update[1]
 
 
-    return (set(new_users), (user, dict_update))
+    return (new_users, (user, dict_update))
 
 
-def start_from_user(user: str, max_it: int = 1):
+def start_from_user(user: str, max_it: int = 2):
 
     # user_dict = { "user_id" : ( tweet_ids,  mentions)}
     user_dict = {}
@@ -82,32 +96,40 @@ def start_from_user(user: str, max_it: int = 1):
     visited_users = set(user)
     
     result = iteration((user, user_dict))
-    new_users = result[0]
+    new_users = set(result[0])
     user_dict[user] = result[1][1]
     users_to_update_with = set()
 
     i = 0
-    pool = multiprocessing.Pool(processes=8)
+    pool = multiprocessing.Pool(processes=12)
     while i < max_it:
         i += 1
         print(f"Depth {i}\n lengtht of user dict: {len(user_dict.keys())}")
 
+        # print(type(new_users))
+        # if not isinstance(new_users, set):
+        #     print(list(new_users))
+        #     print(type(list(new_users)[0]))
+        #     new_users = set(new_users)
+        # print(type(list(new_users)[0]))
+        # print(type(visited_users))
         new_users = new_users.difference(visited_users)
 
-        data = [(sub_user, user_dict) for sub_user in new_users]
+        data = [(sub_user, user_dict) for sub_user in new_users if sub_user]
 
         result = pool.map(iteration, data)
 
         visited_users.update(new_users)
         
-        users_to_update_with = map(lambda x: x[0], result)
-        dict_updates = map(lambda x: x[1], result)
+        users_to_update_with = filter(None, map(lambda x: x[0] if x else None, result))
+        # print(users_to_update_with)
+        dict_updates = filter(None, map(lambda x: x[1] if x else None, result))
         for user_name, content in dict_updates:
             user_dict[user_name] = content
             
         
         
-        new_users = users_to_update_with
+        new_users = set([user for user_list in users_to_update_with for user in user_list if user])
         users_to_update_with = set()
 
     return user_dict
@@ -115,12 +137,25 @@ def start_from_user(user: str, max_it: int = 1):
 
 start_user = "JbRuhiges"
 edges = []
+user_info = {}
 result_dict = start_from_user(start_user)
 for user, content in result_dict.items():
     for mentioned in content[1]:
         edges.append((user,mentioned))
-    
+    user_info[user] = content[2]
 
-with open('output.csv', 'w') as file:
-    writer = csv.writer(file)
-    writer.writerows(edges)
+col_a = set(list(map(lambda x: x[0], edges)))
+print("Reuters" in col_a)
+out_edges = []
+for edge in edges:
+    if edge[1] in col_a:
+        out_edges.append(edge)
+    
+user_info_pd = pd.DataFrame.from_dict(user_info, orient = "index")
+user_info_pd.to_csv("user_info.csv")
+
+with open('edge_list.csv', 'w') as handle:
+    writer = csv.writer(handle)
+    writer.writerows(out_edges)
+with open('user_info.json', 'w') as handle:
+    json.dump(user_info, handle)

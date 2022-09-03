@@ -8,6 +8,7 @@ authors = ["Jakob Hauser <jakob.e.hauser@protonmail.com>"]
 python = ">=3.9, <3.11"
 snscrape = "^0.4.3"
 tqdm = "^4.64.0"
+pandas = "^1.4.4"
 
 [tool.poetry.dev-dependencies]
 pyright = "^1.1.255"
