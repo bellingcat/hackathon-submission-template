@@ -2,14 +2,14 @@
 #BELLINGCAT NETWORK ANALYSIS HACKATHON
 #===================
 #----general preparations----
-list.of.packages <- c("statnet", "network", "tidyverse", "igraph" , "plotly", "intergraph",
+list.of.packages <- c("statnet", "network", "dplyr", "igraph" , "plotly", "intergraph",
                       "htmlwidgets")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
 library(statnet)
 library(network)
-library(tidyverse)
+library(dplyr)
 library(igraph)
 library(plotly)
 library(intergraph)
@@ -18,10 +18,8 @@ library(intergraph)
 #----data import----
 #the edgelist of interactions
 usr_names <- read.csv("/home/td/random_coding/Bellingcat Hackathon/edge_list.csv", header = F)
-#usr_names <- slice(usr_names, 1:20000) #this is just for testing and should not be 
-# in the final version
-#also replace the path from my private machine with some general path to the data
 
+#also replace the path from my private machine with some general path to the data
 #the attributes of the Twitter accounts on the edgelist
 usr_attr <-read.csv("/home/td/random_coding/Bellingcat Hackathon/user_info.csv", header = T)
 
@@ -32,15 +30,14 @@ usr_attr <-read.csv("/home/td/random_coding/Bellingcat Hackathon/user_info.csv",
 #TTboard2011$...2 <- as.character(TTboard2011$...2)
 usr_names <- na.omit(usr_names)
 usr_attr <- na.omit(usr_attr)
-usr_attr <- usr_attr[1:302,] #will be deleted later, just to make it work now
-#odering the edgelist and the attributes in the same order.
+usr_attr$verified <-dplyr::recode(usr_attr$verified, "False" = "not verified",
+                                  "True" = "verified")
 
 #----creating the network----
 #conversion from edgelist into network in statnet
-
-usr_names <- transform(usr_names,                                 # Create ID by group
+usr_names <- transform(usr_names,                          # Create ID by group
                       ID1 = as.numeric(factor(V1)))
-usr_names <- transform(usr_names,                                 # Create ID by group
+usr_names <- transform(usr_names,                          # Create ID by group
                           ID2 = as.numeric(factor(V2)))
 usr_names <- `colnames<-`(usr_names, c("X", "V2", "ID1", "ID2"))
 usr_edgelist <- select(usr_names, "ID1", "ID2")
@@ -53,23 +50,20 @@ usr_net_matrix <- as.matrix(usr_net, mode = "undirected", weighted = T)
 #explanation of the code: user_edgelist is a data.frame when importing as .csv. 
 #If converted to a network from a data.frame it creates parallel edges. 
 #If imported as a weighted matrix however, it creates weighted edges.
+usr_attr$label <- paste(usr_attr$X, ",", usr_attr$X.followers, "followers", ",",
+                        usr_attr$verified)
 
-
-usr_df_full <- merge(usr_names, usr_attr, by = "X")
-usr_net_full <- graph.data.frame(usr_df_full, directed = T)#don't if we will
-#need this code
-
-usr_attr$label <- paste(usr_attr$X, ",", usr_attr$X.followers, "followers")
-
-#----visualizing the network----
-#----interactive visualization----
+#----interactive visualizations----
+#1. of the network
 #reading the graph file
 G <- asIgraph(usr_net)
 G <- set_vertex_attr(G, "label", value = c(usr_attr$label))
+G <- set_vertex_attr(G, "verified", value = c(usr_attr$verified))
 G <- upgrade_graph(G)
 L <- layout.graphopt(G)
 edge_shapes <- list()
 #create vertices and edges
+V(G)$color <- ifelse(V(G)$verified == "verified", "blue", "green")
 vs <- V(G)
 es <- as.data.frame(get.edgelist(G))
 Nv <- length(vs)
@@ -77,9 +71,8 @@ Ne <- length(es[1]$V1)
 #creating the nodes
 Xn <- L[,1]
 Yn <- L[,2]
-network <- plot_ly(x = ~Xn, y = ~Yn, mode = "markers",marker = list(size = 7.5,
-                  color = 'blue', family = "Times New Roman")
-                  , text = vs$label , hoverinfo = "text")
+network <- plot_ly(x = ~Xn, y = ~Yn, mode = "markers",marker = list(size = 7.5, family = "Times New Roman")
+                  , text = vs$label , hoverinfo = "text", color = vs$color)
 #creating the edges
 for(i in 1:Ne) {
   v0 <- es[i,]$V1
@@ -102,16 +95,35 @@ fig <- layout(
   title = 'user network',
   shapes = edge_shapes,
   xaxis = axis,
-  yaxis = axis
+  yaxis = axis, 
+  showlegend = F
 )
-fig
 htmlwidgets::saveWidget(fig, file = "user_network.html")
 
-#interactive barplots and histograms
+#2. interactive barplots and histograms
+#histogram of followers
+hist_fig <-usr_attr %>%
+  filter(!is.na(X.followers)) %>%
+  arrange(desc(X.followers)) %>%
+  slice(1:20)
+
+hist_fig <- plot_ly(hist_fig, x = ~X, y = ~X.followers) %>%
+layout(title = '20 most followed accounts', xaxis = list(title = 'account name'), 
+       yaxis = list(title = 'number of followers'))
+htmlwidgets::saveWidget(hist_fig, file = "most_followed_accounts.html")
+
+#histogram of posts
+hist_posts <-usr_attr %>%
+  filter(!is.na(X.posts)) %>%
+  arrange(desc(X.posts)) %>%
+  slice(1:20)
+
+hist_posts <- plot_ly(hist_posts, x = ~X, y = ~X.posts) %>%
+  layout(title = '20 accounts with the most posts', xaxis = list(title = 'username'), 
+         yaxis = list(title = 'number of posts'))
+htmlwidgets::saveWidget(hist_posts, file = "accounts_with_most_posts.html")
 
 #----descriptive statistics----
-#add all the Gerber statistics + some more centrality measures , also look at
-#Furnas' work
 nusers <- length(unique(usr_edgelist[,2])) #number of users in the network (check if this actually counts the users)
 deg <- igraph::graph_from_data_frame(usr_edgelist)
 deg <- degree(deg)
@@ -148,10 +160,9 @@ usr_net_stats <- round(usr_net_stats, digits = 3)
 user_network_stats <- gridExtra::tableGrob(usr_net_stats, cols = "user network")
 ggsave(file="user_network_statistics.png", user_network_stats)   
 
-#----legend with username-ID combination----
-
-
 
 #----ERGM----
+#to be added in the future
+
 
 
