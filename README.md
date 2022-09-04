@@ -51,5 +51,7 @@ In the future, we would like to increase the modularity of the tool by allowing 
 
 Furthermore, we would like to include error and warning messages as well as troubleshooting advice in the final output and/or during the process (e.g. if the process completes and produces 'meaningful' output, but this output is extremely unlikely given the network parameters). Such estimates of parameter likelihood could be computed using Exponential Random Graph Models (ERGMs) for statistical significance testing, or comparing the observed network to simulated Erdos-Renyi models. 
 
+The plan is to move the network visualization and analysis completely to Python to achieve a more seamless integration, lower error rate and faster execution.
+
 Currently, the biggest limitation is the limited troubleshooting ability in case the tool is (partially) dysfunctional. Offering a simple one-stop-shop tool to users with limited coding and command line experience, also comes at the cost of low customizability on the users' side. We did not have the time or expertise to build this tool as a GUI which offers customization. 
 Experienced users however, can always modify the source code to their needs. 
