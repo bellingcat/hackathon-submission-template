@@ -5,7 +5,7 @@
 list.of.packages <- c("igraph","ergm","robousbase","statnet", "network", "dplyr", "igraph" , "plotly", "intergraph",
                       "htmlwidgets")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages(new.packages, repos = "http://cran.us.r-project.org")
+if(length(new.packages)) install.packages(new.packages, repo = "https://cloud.r-project.org/")
 
 library(statnet)
 library(network)
@@ -31,7 +31,6 @@ usr_names <- read.csv(edge_path, header = F)
 # in the final version
 #also replace the path from my private machine with some general path to the data
 
-#also replace the path from my private machine with some general path to the data
 #the attributes of the Twitter accounts on the edgelist
 usr_attr <-read.csv(info_path, header = T)
 
@@ -44,6 +43,8 @@ usr_names <- na.omit(usr_names)
 usr_attr <- na.omit(usr_attr)
 usr_attr$verified <-dplyr::recode(usr_attr$verified, "False" = "not verified",
                                   "True" = "verified")
+usr_attr['first'] <- 5
+usr_attr$first[1] <- 20
 
 #----creating the network----
 #conversion from edgelist into network in statnet
@@ -71,6 +72,7 @@ usr_attr$label <- paste(usr_attr$X, ",", usr_attr$X.followers, "followers", ",",
 G <- asIgraph(usr_net)
 G <- set_vertex_attr(G, "label", value = c(usr_attr$label))
 G <- set_vertex_attr(G, "verified", value = c(usr_attr$verified))
+G <- set_vertex_attr(G, "first",value = c(usr_attr$first))
 G <- upgrade_graph(G)
 L <- layout.graphopt(G)
 edge_shapes <- list()
@@ -83,7 +85,7 @@ Ne <- length(es[1]$V1)
 #creating the nodes
 Xn <- L[,1]
 Yn <- L[,2]
-network <- plot_ly(x = ~Xn, y = ~Yn, mode = "markers",marker = list(size = 7.5, family = "Times New Roman")
+network <- plot_ly(x = ~Xn, y = ~Yn, mode = "markers", opacity= 3, marker = list(size = 7.5, family = "Times New Roman")
                   , text = vs$label , hoverinfo = "text", color = vs$color)
 #creating the edges
 for(i in 1:Ne) {
@@ -110,6 +112,14 @@ fig <- layout(
   yaxis = axis, 
   showlegend = F
 )
+fig <- fig %>%
+  add_trace(
+    x = Xn,
+    y = Yn,
+    marker = list(
+      size = vs$first
+      ))
+
 htmlwidgets::saveWidget(fig, file = "user_network.html")
 
 #2. interactive barplots and histograms
