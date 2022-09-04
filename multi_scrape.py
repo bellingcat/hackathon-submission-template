@@ -1,13 +1,15 @@
 import subprocess
+import sys
 import json
-from typing import List, Tuple, Set, Dict
+from typing import List
 import csv
 from snscrape.base import ScraperException
-from tqdm import tqdm
 import snscrape.modules.twitter as st
 import multiprocessing
 import itertools
 import pandas as pd
+import os
+from tempenv import TemporaryEnvironment
 
 
 
@@ -22,7 +24,7 @@ def get_user_tweets(user: str):
         sns_generator = sns_user.get_items()
     except ScraperException:
         return None
-    tweets = itertools.islice(sns_generator , 100)
+    tweets = itertools.islice(sns_generator , n_tweets)
 
     tweet_ids = map(lambda x: x.id, tweets)
 
@@ -88,7 +90,7 @@ def iteration(args):
     return (new_users, (user, dict_update))
 
 
-def start_from_user(user: str, max_it: int = 2):
+def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
 
     # user_dict = { "user_id" : ( tweet_ids,  mentions)}
     user_dict = {}
@@ -133,40 +135,57 @@ def start_from_user(user: str, max_it: int = 2):
         users_to_update_with = set()
 
     return user_dict
+if __name__ == "__main__":
+    # if sys.argv[3] == 'method1':
+    #     method1()
+    # elif sys.argv[3] == 'method2':
+    #     method2()
+    # else:
+    #     print("Invalid argument")
+    
+
+    start_user = sys.argv[1]
+    depth = int(sys.argv[2])
+    global n_tweets
+    n_tweets = int(sys.argv[3])
+
+    edges = []
+    user_info = {}
+    result_dict = start_from_user(start_user, depth, n_tweets)
+    for user, content in result_dict.items():
+        for mentioned in content[1]:
+            edges.append((user,mentioned))
+
+    col_a = set(list(map(lambda x: x[0], edges)))
+
+    edges_set =  set(edges)
+    out_edges = []
 
 
-start_user = "EliotHiggins"
-edges = []
-user_info = {}
-result_dict = start_from_user(start_user)
-for user, content in result_dict.items():
-    for mentioned in content[1]:
-        edges.append((user,mentioned))
+    for edge in edges:
+        if (edge[1], edge[0]) in edges_set:
+            out_edges.append(edge)
+            try:
+                user_info[edge[0]] = result_dict[edge[0]][2]
+            except KeyError:
+                continue
 
-col_a = set(list(map(lambda x: x[0], edges)))
+    len_node_info = len(user_info.keys())
+    unique_nodes = len(set(map(lambda x: x[0], out_edges)))
+    print(f"{unique_nodes} unique users in edgelist and {len_node_info} counts of node information")
 
-edges_set =  set(edges)
-out_edges = []
-
-
-for edge in edges:
-    if (edge[1], edge[0]) in edges_set:
-        out_edges.append(edge)
-        try:
-            user_info[edge[0]] = result_dict[edge[0]][2]
-        except KeyError:
-            continue
-
-len_node_info = len(user_info.keys())
-unique_nodes = len(set(map(lambda x: x[0], out_edges)))
-print(f"{unique_nodes} unique users in edgelist and {len_node_info} counts of node information")
-
-user_info_pd = pd.DataFrame.from_dict(user_info, orient = "index")
-user_info_pd.to_csv("user_info.csv")
+    user_info_pd = pd.DataFrame.from_dict(user_info, orient = "index")
+    user_info_pd.to_csv("user_info.csv")
 
 
-with open('edge_list.csv', 'w') as handle:
-    writer = csv.writer(handle)
-    writer.writerows(out_edges)
-with open('user_info.json', 'w') as handle:
-    json.dump(user_info, handle)
+    with open('edge_list.csv', 'w') as handle:
+        writer = csv.writer(handle)
+        writer.writerows(out_edges)
+    with open('user_info.json', 'w') as handle:
+        json.dump(user_info, handle)
+
+    environment = os.environ              
+    environment["R_LIBS_USER"] = os.getcwd() + "/R_libraries"
+    with TemporaryEnvironment(environment):
+        retcode = subprocess.call("R < network_analysis_tool.R --no-save", shell=True)
+

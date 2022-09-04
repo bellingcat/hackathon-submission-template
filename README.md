@@ -9,7 +9,13 @@ We plan on making the tool modular in a way that it can easily be extended with 
 JH https://github.com/digital-scrappy
 
 TD https://github.com/timo-damm
-
+## Dependencies
+R
+Python
+Pandoc
+gcc-fortan
+python dependencies in requirements.txt
+R dependencies specified in R script
 ## Tool Description
 In the [Bellingcat Survey](https://www.bellingcat.com/resources/2022/08/12/these-are-the-tools-open-source-researchers-say-they-need/) a majority researchers indicated they are in need of *free* tools that are *easy to use* (i.e. do not include writing your own code, using GitHub, or extensive use of the command line. With regards to network analysis specifically, users were in need of "*a network analysis tool to analyse social media connections*", which includes measures such as degree centrality and displays clear graphs. Other users were in need of "*a simple tool to visualize connections*" or "*a tool that helps draw network diagrams from data*"
 The tool we developed produces easily understandable graphs and information about the network, without having to have knowledge on how to write code or use a command line interface. 

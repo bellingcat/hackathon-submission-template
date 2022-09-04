@@ -2,7 +2,7 @@
 #BELLINGCAT NETWORK ANALYSIS HACKATHON
 #===================
 #----general preparations----
-list.of.packages <- c("statnet", "network", "dplyr", "igraph" , "plotly", "intergraph",
+list.of.packages <- c("igraph","ergm","robousbase","statnet", "network", "dplyr", "igraph" , "plotly", "intergraph",
                       "htmlwidgets")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos = "http://cran.us.r-project.org")
@@ -15,16 +15,25 @@ library(plotly)
 library(intergraph)
 
 
+base_dir <- getwd()
+"/home/scrappy/Projects/network-analysis-hackathon"
+
+edge_name <- '/edge_list.csv'
+edge_path <- paste(base_dir,edge_name,sep="")
+
+info_name <- '/user_info.csv'
+
+info_path <- paste(base_dir,info_name,sep="")
 #----data import----
 #the edgelist of interactions
-usr_names <- read.csv("edge_list.csv", header = F)
+usr_names <- read.csv(edge_path, header = F)
 #usr_names <- slice(usr_names, 1:20000) #this is just for testing and should not be 
 # in the final version
 #also replace the path from my private machine with some general path to the data
 
 #also replace the path from my private machine with some general path to the data
 #the attributes of the Twitter accounts on the edgelist
-usr_attr <-read.csv("user_info.csv", header = T)
+usr_attr <-read.csv(info_path, header = T)
 
 #----data cleaning and preparation----
 #make sure the edgelists and the file with the nodal attributes are in the same
