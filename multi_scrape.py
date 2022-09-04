@@ -22,7 +22,7 @@ def get_user_tweets(user: str):
         sns_generator = sns_user.get_items()
     except ScraperException:
         return None
-    tweets = itertools.islice(sns_generator , 50)
+    tweets = itertools.islice(sns_generator , 100)
 
     tweet_ids = map(lambda x: x.id, tweets)
 
@@ -135,24 +135,35 @@ def start_from_user(user: str, max_it: int = 2):
     return user_dict
 
 
-start_user = "JbRuhiges"
+start_user = "EliotHiggins"
 edges = []
 user_info = {}
 result_dict = start_from_user(start_user)
 for user, content in result_dict.items():
     for mentioned in content[1]:
         edges.append((user,mentioned))
-    user_info[user] = content[2]
 
 col_a = set(list(map(lambda x: x[0], edges)))
-print("Reuters" in col_a)
+
+edges_set =  set(edges)
 out_edges = []
+
+
 for edge in edges:
-    if edge[1] in col_a:
+    if (edge[1], edge[0]) in edges_set:
         out_edges.append(edge)
-    
+        try:
+            user_info[edge[0]] = result_dict[edge[0]][2]
+        except KeyError:
+            continue
+
+len_node_info = len(user_info.keys())
+unique_nodes = len(set(map(lambda x: x[0], out_edges)))
+print(f"{unique_nodes} unique users in edgelist and {len_node_info} counts of node information")
+
 user_info_pd = pd.DataFrame.from_dict(user_info, orient = "index")
 user_info_pd.to_csv("user_info.csv")
+
 
 with open('edge_list.csv', 'w') as handle:
     writer = csv.writer(handle)

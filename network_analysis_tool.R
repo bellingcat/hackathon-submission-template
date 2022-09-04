@@ -5,7 +5,7 @@
 list.of.packages <- c("statnet", "network", "tidyverse", "igraph" , "plotly", "intergraph",
                       "htmlwidgets")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages(new.packages)
+if(length(new.packages)) install.packages(new.packages, repos = "http://cran.us.r-project.org")
 
 library(statnet)
 library(network)
@@ -17,13 +17,13 @@ library(intergraph)
 
 #----data import----
 #the edgelist of interactions
-usr_names <- read.csv("/home/td/random_coding/Bellingcat Hackathon/edge_list.csv", header = F)
+usr_names <- read.csv("edge_list.csv", header = F)
 #usr_names <- slice(usr_names, 1:20000) #this is just for testing and should not be 
 # in the final version
 #also replace the path from my private machine with some general path to the data
 
 #the attributes of the Twitter accounts on the edgelist
-usr_attr <-read.csv("/home/td/random_coding/Bellingcat Hackathon/user_info.csv", header = T)
+usr_attr <-read.csv("user_info.csv", header = T)
 
 #----data cleaning and preparation----
 #make sure the edgelists and the file with the nodal attributes are in the same
