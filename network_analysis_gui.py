@@ -98,12 +98,12 @@ def run_gui():
         if event=='-RUN-APP-':
             # do the network analysis
             handle_key_error_return = try_out_kwarg_values_and_types(**values)
-
-            if handle_key_error_return[0]==KeyError:
-
+            error_status = handle_key_error_return[0]
+            if error_status==True:
+                error_msg = handle_key_error_return[1]
                 # include a trigger for an erroneous trigger/event/input
                 current_window.close()
-                current_window = generate_post_error_intro_window(project_name_)
+                current_window = generate_post_error_intro_window(project_name_, error_msg)
                 event, values = current_window.read()
             else:
                 run_network_analysis(**values)
@@ -120,8 +120,38 @@ def run_gui():
     return
 
 def try_out_kwarg_values_and_types(**kwargs)->tuple:
+    """Functions takes the tool input parameters and determines if any of them are incorrect/missing
 
-    return
+    Returns:
+        tuple: (error_status, error_message)
+    """    
+    error_status, error_msg = False, 'ERROR : '
+
+    #unpack the values
+    search = kwargs['-TWITTER-SEARCH-TERM-']
+    max_rec_dep = kwargs['-MAX_REC-DEPTH-']
+    max_n_tweets = kwargs['-MAX-N-TWEETS-']
+
+    minimum_search_len = 3
+
+    # now iterate through the inputs and see if an error will be thrown
+    try:
+        int(max_n_tweets)
+    except:
+        error_status=True
+        error_msg += '\n--Maximum number of tweets is not a whole number'
+
+    try: 
+        int(max_rec_dep)
+    except:
+        error_status=True
+        error_msg += '\n--Maximum recursio is not a whole number'
+    # NOTE: here we should add some 
+    if len(search)<minimum_search_len:
+        error_status=True
+        error_msg+='\n--Search term is too short'
+
+    return error_status, error_msg
 
 def generate_post_error_intro_window(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered'):
     layout = generate_post_error_intro_window_layout(project_name_, key_error_msg)
