@@ -1,16 +1,20 @@
 import json
 import os
+from turtle import color
 import pandas as pd
 import numpy as np
 import time
 from datetime import datetime
 import PySimpleGUI as sg
 
+import multi_scrape as TANV
+
 global name_of_tool
 name_of_tool = 'TANV (Working title)'
 
 menu_txt_font_size = 12
 menu_font = 'Arial'
+menu_color = 'blue'
 
 def main():
     """Main call of py script
@@ -21,11 +25,11 @@ def main():
 
     return
 
-def generate_intro_window(project_name_:str = 'Users_project_name'):
+def generate_intro_window(project_name_:str = f'{name_of_tool} project'):
     return sg.Window(name_of_tool, 
                     generate_intro_window_layout(project_name_))
 
-def generate_intro_window_layout(project_name_ = 'Users_project_name') -> list:
+def generate_intro_window_layout(project_name_ = f'{name_of_tool} project') -> list:
     """Fn declares and returns a list of lists where each sub-list is a row in the PySG Intro GUI menu.
     Returns:
         list: menu layout
@@ -77,25 +81,34 @@ def run_gui():
     #set the GUI theme
     
     sg.theme('BlueMono')
-    
+    project_name_ = f'{name_of_tool} project'
     #init intro window
-    current_window = generate_intro_window()
-
+    current_window = generate_intro_window(project_name_)
     while True:
 
         #read the user inputs
 
         event, values = current_window.read()
-        # initialize intro gui menu
+
+        #get user project name
+        project_name_ = values['-PROJECT_NAME-']
 
 
         # if-elif-else statements that trigger actions
         if event=='-RUN-APP-':
             # do the network analysis
+            handle_key_error_return = try_out_kwarg_values_and_types(**values)
 
-            run_network_analysis(**values)
+            if handle_key_error_return[0]==KeyError:
 
-        # include one for an erroneous trigger/event/input
+                # include a trigger for an erroneous trigger/event/input
+                current_window.close()
+                current_window = generate_post_error_intro_window(project_name_)
+                event, values = current_window.read()
+            else:
+                run_network_analysis(**values)
+
+
 
 
         # final event-trigger for closing GUI
@@ -106,7 +119,31 @@ def run_gui():
 
     return
 
-def run_network_analysis(**kwargs):
+def try_out_kwarg_values_and_types(**kwargs)->tuple:
+
+    return
+
+def generate_post_error_intro_window(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered'):
+    layout = generate_post_error_intro_window_layout(project_name_, key_error_msg)
+    return sg.Window(name_of_tool, layout)
+
+def generate_post_error_intro_window_layout(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered')->list:
+
+    layout = generate_intro_window_layout(project_name_ )
+    error_msg = get_simple_str_display(key_error_msg, text_colour='red')
+
+    layout.insert(1, error_msg)
+
+    return layout
+
+def get_simple_str_display(disp_str:str, font:tuple=(menu_font, menu_txt_font_size), text_colour = menu_color)->list:
+    return [sg.Text(disp_str, font= font, text_color=text_colour)]
+
+def run_network_analysis(**kwargs):    
+    
+
+    # now pass the arguments forward to the TANV tool
+
     return
 
 
