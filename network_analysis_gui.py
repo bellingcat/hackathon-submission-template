@@ -98,10 +98,10 @@ def generate_intro_window_layout(project_name_ = f'{name_of_tool} project', **kw
 
     font_tuple = (menu_font, menu_txt_font_size)
     intro_row = [sg.Text(f"""Welcome to the {name_of_tool} Tool!
-    To get data and analysis for a single query, go to section A.
-    To do so for multiple queries, go to section B.
-    If you wish to re-run analysis on data you've stored locally, 
-    please click on 'RERUN ANALYSIS' to open separate menu.""", 
+To get data and analysis for a single query, go to section A, then click 'RUN TOOL'.
+To do so for multiple queries, go to section B, then click 'RUN TOOL'.
+If you wish to re-run analysis on data you've stored locally, 
+please click on 'RERUN ANALYSIS' to open separate menu.""", 
                 font=font_tuple )]
 
 
@@ -139,7 +139,7 @@ def add_progress_bar_into_layout(layout:list, loc:int=-2, key:str='-PROG-BAR-', 
     layout.insert(loc, prog_bar)
 
     #add display text
-    start_txt = "Initiating Snscrape queries (you may need to click 'RUN APP' again) ..."
+    start_txt = "Initiating Snscrape queries (you may need to click 'RUN TOOL' again) ..."
     prog_bar_disp = [sg.Text(start_txt, font=(menu_font, menu_txt_font_size), key='-PROG-BAR-DISPLAY-')]
     
     layout.insert(loc-1, prog_bar_disp)
@@ -225,6 +225,7 @@ def run_gui():
                         for i, row in query_df.iterrows():
                             #  pass each row over to the wrapper_fn for TANV.main()
                             # which should call and store the results, then aggregate them all
+                            # NOTE UNCOMMENT when ready to start testing multiple queries at once
                             # results.append(run_network_analysis(row))
                             print(i)
                             time.sleep(1)
@@ -272,16 +273,29 @@ def run_gui():
             elif event=='-RUN-ANALYSIS-':
                 #trigger events for rerunning the analysis component of scrape
                 # get the user file and the edge list
-                error_status, error_msg = test_filepaths(values['-USER-INFO-FILE-'], values['-USER-INFO-FILE-'])
+                edge_list_fpath, user_info_fpath = values['-EDGE-LIST-FILE-'], values['-USER-INFO-FILE-']
+
+                error_status, error_msg = check_file_ends(edge_list_fpath, ('.csv', '.xlsx'), )
                 if error_status==True:
                     # include a trigger for an erroneous trigger/event/input
                     current_window.close()
+                    print('ERRROR for analysis mode')
                     current_window = generate_post_error_analysis_window(project_name_, error_msg, **values)
                     continue
 
-                fpath_users = values['-USER-INFO-FILE-']
-                fpath_users = values['-USER-INFO-FILE-']
+                error_status, error_msg = check_file_ends(user_info_fpath, ('.csv', '.xlsx'), error_status, error_msg)
+                if error_status==True:
+                    # include a trigger for an erroneous trigger/event/input
+                    current_window.close()
+                    print('ERROR in analysis mode inputs')
+                    current_window = generate_post_error_analysis_window(project_name_, error_msg, **values)
+                    continue
+
+                fpath_users_info = values['-USER-INFO-FILE-']
+                fpath_edge_list = values['-EDGE-LIST-FILE-']
                 #pass to analysis function
+                # NOTE placeholder comment here
+                # analysis.main(fpath_users, fpath_edge)
 
                 # rerun_analysis_on_data_stored_locally(**values)
                 continue
@@ -309,10 +323,12 @@ def run_gui():
 
     return
 
-def test_filepaths(file_ends:tuple = ('.csv', '.xlsx'), *args):
+def test_filepaths(file_ends:tuple = ('.csv', '.xlsx'), error_status:bool=False, error_msg:str='', *args):
 
     for fpath in args:
-        error_status, error_msg = check_file_ends(fpath, file_ends)
+        error_status, error_msg = check_file_ends(fpath, file_ends, error_status, error_msg)
+        if error_status:
+            return error_status, error_msg
 
     return error_status, error_msg
 
@@ -329,6 +345,8 @@ def check_file_ends(fpath:str, file_endings:tuple, error_status:bool=False, erro
 
     for ending in file_endings:
         error_status, error_msg = check_file_ending(fpath, ending, error_status, error_msg)
+        if error_status==False:
+            return error_status, ''
 
     return error_status, error_msg
 
@@ -336,7 +354,7 @@ def check_file_ending(fpath:str, ending:str, error_status:bool=False, error_msg:
 
     if fpath.endswith(ending)==False:
         error_status=True
-        error_msg += f'\n--Query not of expected file type ({ending}).'
+        error_msg += f'\n--File not of expected file type ({ending}).'
         return error_status, error_msg
 
     return error_status, error_msg
@@ -470,6 +488,19 @@ def try_out_query_params_values_and_types(search, max_rec_dep, max_n_tweets, err
 def generate_post_error_intro_window(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered', **kwargs):
     layout = generate_post_error_intro_window_layout(project_name_, key_error_msg, **kwargs)
     return sg.Window(name_of_tool, layout)
+
+def generate_post_error_analysis_window(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered', **kwargs):
+    layout = generate_post_error_analysis_window_layout(project_name_, key_error_msg, **kwargs)
+    return sg.Window(name_of_tool, layout)
+
+def generate_post_error_analysis_window_layout(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered', **kwargs)->list:
+
+    layout = generate_secondary_window_analysis_layout(project_name_, **kwargs )
+    error_msg = get_simple_str_display(key_error_msg, text_colour='red')
+
+    layout.insert(1, error_msg)
+
+    return layout
 
 def generate_post_error_intro_window_layout(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered', **kwargs)->list:
 
