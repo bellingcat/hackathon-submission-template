@@ -1,3 +1,4 @@
+from cProfile import run
 import sys
 import json
 import csv
@@ -10,12 +11,14 @@ import datetime
 from pathlib import Path
 import os
 import numpy as np
-
+import datetime as dt
 
 def get_user_tweets(user: str, n_tweets:int):
 
 
-    
+    #timestamping the search right before we access twitter data
+    time_of_search = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
     sns_user = st.TwitterUserScraper(user)
     try:
         sns_generator = sns_user.get_items()
@@ -24,16 +27,26 @@ def get_user_tweets(user: str, n_tweets:int):
     tweets = itertools.islice(sns_generator, n_tweets)
 
     tweet_ids = map(lambda x: x.id, tweets)
-
+    # tweet_id_list = []
+    # for tweet in tweets:
+    #     tweet_id_list.append(tweet.id)
     raw_mentions = map(lambda x: x.mentionedUsers, tweets)
 
     #fetching content as well
     tweet_contents_lst = []
     for t in tweets:
+        tw_dict = {}
         try:
-            tweet_contents_lst.append(t.content)
+            tw_dict['tweet_id'] = t.id
         except (ScraperException, AttributeError):
-            tweet_contents_lst.append(np.NaN)
+            tw_dict['tweet_id'] = np.nan
+            tw_dict['tweet_text'] = np.NaN
+        try:
+            tw_dict['tweet_text'] = t.content
+        except (ScraperException, AttributeError):
+            tw_dict['tweet_text'] = np.NaN            
+        
+        tweet_contents_lst.append(tw_dict)
 
     mentions = []
     try:
@@ -59,7 +72,8 @@ def get_user_tweets(user: str, n_tweets:int):
                          "#friends": user_result.friendsCount,
                          "#favourites": user_result.favouritesCount,
                          "location": user_result.location,
-                         
+                         #adding a timestamp as well so that a researcher can identify the the metadata at time x
+                         "time_of_search" : time_of_search,
                          }
         else:
             user_info = {"potentially_banned": True}
@@ -153,11 +167,23 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
     n_tweets = num_tweets
     print('Getting data via snscrape ...')
     result_dict = start_from_user(start_user, depth, n_tweets)
+
+    tweet_contents_lst = []
     print('Searching from user: ...', start_user)
     for user, content in result_dict.items():
         for mentioned in content[1]:
             print('\tMentioned: ', mentioned)
             edges.append((user,mentioned))
+
+        # get the usr ID too 
+        user_id = content[2]['id']
+
+        # iterate over the tweets and content as well
+        for  tweet_sub_dict in content[3]:
+            #make sur we have the id as well
+            tweet_sub_dict['User'] = user
+            tweet_sub_dict['User_id'] = user_id
+            tweet_contents_lst.append(tweet_sub_dict)
 
 
     edges_set = set(edges)
@@ -180,15 +206,14 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
         edge_attr_dict[str(edge)] = edges.count(edge)
         
 
-    
-    user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
-    user_info_pd.to_csv("user_attributes.csv")
 
+    #tweet text content being turned to dataframe and then saved as well
+    tweet_text_df = pd.DataFrame(tweet_contents_lst)
     
 
     data_path = Path(f"Data/{project_name}/")
-    day = datetime.datetime.now().date().isoformat() + "_"
-    time = str(datetime.datetime.now().hour)+ "-" + str(datetime.datetime.now().minute)
+    day = dt.datetime.now().date().isoformat() + "_"
+    time = str(dt.datetime.now().hour)+ "-" + str(dt.datetime.now().minute)
     
 
     run_path = data_path / (day + time)
@@ -199,6 +224,12 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
                        "recursion depth" : depth,
                        "number of tweets searched per user": n_tweets}
 
+    tweet_text_fpath = '/'.join([str(run_path), 'tweet_text.csv'])
+    tweet_text_df.to_csv(tweet_text_fpath)
+
+    user_info_fpath = '/'.join([str(run_path), "user_attributes.csv"])
+    user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
+    user_info_pd.to_csv(user_info_fpath)
 
     if save:
         save_query_results(run_path, run_params_dict, out_edges, user_info, edge_attr_dict)
@@ -222,6 +253,8 @@ def save_query_results(run_path:str, run_params_dict:dict, out_edges, user_info,
 
     with open((run_path / 'edge_attributes.json'), 'w') as handle:
         json.dump(edge_attr_dict, handle)
+
+
 
 
 if __name__ == "__main__":

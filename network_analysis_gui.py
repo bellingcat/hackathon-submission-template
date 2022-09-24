@@ -111,11 +111,11 @@ please click on 'RERUN ANALYSIS' to open separate menu.""",
     layout = [intro_row,
             [sg.Text('A.', font=(menu_font, 20)), sg.HorizontalSeparator(key='sep')],
             get_simple_str_input_w_key("1. Enter the name of your analysis project (for your own record-keeping purposes)", '-PROJECT-NAME-', project_name_, font_tuple, **kwargs),
-            get_simple_str_input_w_key("2. Enter your Twitter user to search:", '-TWITTER-SEARCH-USER-', '', font_tuple, **kwargs),
-            get_simple_str_input_w_key("3. Enter the maximum recursive depth* you'd like to explore to: ", '-MAX-REC-DEPTH-', 2 , font_tuple, **kwargs),
-            get_simple_str_input_w_key("4. Enter the maximum number of Tweets you'd like to retrieve:", "-MAX-N-TWEETS-", 10, font_tuple, **kwargs),
+            get_simple_str_input_w_key("2. Enter your Twitter user to search:", 'SEARCH_USER', '', font_tuple, **kwargs),
+            get_simple_str_input_w_key("3. Enter the maximum recursive depth* you'd like to explore to: ", 'MAX_DEPTH', 2 , font_tuple, **kwargs),
+            get_simple_str_input_w_key("4. Enter the maximum number of Tweets you'd like to retrieve:", "MAX_NUMBER_TWEETS", 10, font_tuple, **kwargs),
             [sg.Text('B.', font=(menu_font, 20)), sg.HorizontalSeparator(key='sep')],
-            get_simple_str_display('If you want to perform multiple searches, select an Excel/CSV file.\nIt *must* have following columns present:\n\nSEARCH_TERM, MAX_DEPTH, MAX_NUMBER_TWEETS\n',), 
+            get_simple_str_display('If you want to perform multiple searches, select an Excel/CSV file.\nIt *must* have following columns present:\n\nSEARCH_USER, MAX_DEPTH, MAX_NUMBER_TWEETS\n',), 
             get_file_browse_input_w_key('Select your queries file:', '-PARAMS-FILE-', font_tuple),
             [sg.HorizontalSeparator(key='sep')],
             [*get_simple_button_w_key("RUN TOOL", "-RUN-APP-"), *get_simple_button_w_key('RERUN ANALYSIS', '-RERUN-ANALYSIS-'), *close_button_row],
@@ -232,7 +232,8 @@ def run_gui():
 
                                 # when the function for aggregating and saving all the files togethe is complete, 
                                 #change first param to False
-                                results.append(run_network_analysis(True, row))
+                                row['-PROJECT-NAME-'] = project_name_
+                                results.append(run_network_analysis(**row))
                                 print(i)
                                 time.sleep(1)
                                 update_val = 100*(i+1)/len(query_df)
@@ -256,7 +257,7 @@ def run_gui():
 
                         # add all the results together and then save them
                         # Uncomment when fn ready
-                        
+
                         # agg_results = aggregate_all_the_results(results, save=True)
 
                         # and output them to a useful location
@@ -448,7 +449,7 @@ def try_out_params_file_cols_and_types(filepath:str)->tuple:
     # check columns
 
     df_cols = list(df.columns)
-    necessary_cols = ['SEARCH_TERM', 'MAX_DEPTH', 'MAX_NUMBER_TWEETS']
+    necessary_cols = ['SEARCH_USER', 'MAX_DEPTH', 'MAX_NUMBER_TWEETS']
     if len(set(df_cols).intersection(set(necessary_cols)))!=len(necessary_cols):
         error_status=True
         missing_cols = [x for x in necessary_cols if x not in df_cols]
@@ -459,7 +460,7 @@ def try_out_params_file_cols_and_types(filepath:str)->tuple:
     row_error_status, row_error_msg = False, ''
     for i, row in df.iterrows():
         #unpack the values
-        search = row['SEARCH_TERM']
+        search = row['SEARCH_USER']
         max_rec_dep = row['MAX_DEPTH']
         max_n_tweets = row['MAX_NUMBER_TWEETS']
 
@@ -504,9 +505,9 @@ def try_out_kwarg_values_and_types(**kwargs)->tuple:
     
 
     #unpack the values
-    search = kwargs['-TWITTER-SEARCH-USER-']
-    max_rec_dep = kwargs['-MAX-REC-DEPTH-']
-    max_n_tweets = kwargs['-MAX-N-TWEETS-']
+    search = kwargs['SEARCH_USER']
+    max_rec_dep = kwargs['MAX_DEPTH']
+    max_n_tweets = kwargs['MAX_NUMBER_TWEETS']
 
     return try_out_query_params_values_and_types(search, max_rec_dep, max_n_tweets)
 
@@ -577,21 +578,21 @@ def generate_post_error_intro_window_layout(project_name_:str = f'{name_of_tool}
 def get_simple_str_display(disp_str:str, font:tuple=(menu_font, menu_txt_font_size), text_colour = menu_color)->list:
     return [sg.Text(disp_str, font= font, text_color=text_colour)]
 
-def run_network_analysis(**kwargs):    
+def run_network_analysis(save:bool=True, **kwargs):    
     """Wrapper function that unpacks the query arguments for a single SnScrape Query and then passes them to the main fn
     of multi_scrape.py
     """    
 
     # now pass the arguments forward to the TANV tool
-    main_user = kwargs['-TWITTER-SEARCH-USER-']
-    max_rec_dep = int(kwargs['-MAX-REC-DEPTH-'])
-    max_n_tweets = int(kwargs['-MAX-N-TWEETS-'])
+    main_user = kwargs['SEARCH_USER']
+    max_rec_dep = int(kwargs['MAX_DEPTH'])
+    max_n_tweets = int(kwargs['MAX_NUMBER_TWEETS'])
     
     project_name = process_filename(kwargs['-PROJECT-NAME-'])
     
     print(f'Search: {main_user}; Depth: {max_rec_dep}, Max tweets: {max_n_tweets}')
     # results are : run_path, run_params_dict, out_edges, user_info, edge_attr_dict 
-    results_ = TANV.main(main_user, max_rec_dep, max_n_tweets, project_name)
+    results_ = TANV.main(main_user, max_rec_dep, max_n_tweets, project_name, save)
 
     return results_
 
