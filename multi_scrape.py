@@ -12,13 +12,12 @@ import os
 from tempenv import TemporaryEnvironment
 
 
-def get_mentioned_users(x_content:str)->list:
+def get_mentioned_users(x_content: str) -> list:
 
     return get_mentioned_users
 
+
 def get_user_tweets(user: str):
-
-
 
     print(user)
     sns_user = st.TwitterUserScraper(user)
@@ -26,10 +25,10 @@ def get_user_tweets(user: str):
         sns_generator = sns_user.get_items()
     except ScraperException:
         return None
-    tweets = itertools.islice(sns_generator , n_tweets)
+    tweets = itertools.islice(sns_generator, n_tweets)
 
     tweet_ids = map(lambda x: x.id, tweets)
-    
+
     raw_mentions = map(lambda x: x.mentionedUsers, tweets)
     mentions = []
     try:
@@ -42,22 +41,22 @@ def get_user_tweets(user: str):
         user_result = sns_user._get_entity()
 
     except KeyError:
-        user_info = {"potentially_banned" : True}
+        user_info = {"potentially_banned": True}
     else:
         if user_result:
-            user_info = {"id" : user_result.id,
-                        "display name" : user_result.displayname,
-                        "description" : user_result.description,
-                        "verified" : user_result.verified,
-                        "potentially_banned" : False,
-                        "#followers" : user_result.followersCount,
-                        "#posts" : user_result.statusesCount,
-                        "#friends" : user_result.friendsCount,
-                        "#favourites" : user_result.favouritesCount,
-                        "location" : user_result.location
-                        }
+            user_info = {"id": user_result.id,
+                         "display name": user_result.displayname,
+                         "description": user_result.description,
+                         "verified": user_result.verified,
+                         "potentially_banned": False,
+                         "#followers": user_result.followersCount,
+                         "#posts": user_result.statusesCount,
+                         "#friends": user_result.friendsCount,
+                         "#favourites": user_result.favouritesCount,
+                         "location": user_result.location
+                         }
         else:
-            user_info = {"potentially_banned" : True}
+            user_info = {"potentially_banned": True}
 
     return (list(tweet_ids), mentions, user_info)
 
@@ -88,7 +87,6 @@ def iteration(args):
 
     new_users = dict_update[1]
 
-
     return (new_users, (user, dict_update))
 
 
@@ -98,7 +96,7 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
     user_dict = {}
 
     visited_users = set(user)
-    
+
     result = iteration((user, user_dict))
     new_users = set(result[0])
     user_dict[user] = result[1][1]
@@ -107,16 +105,10 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
     i = 0
     pool = multiprocessing.Pool(processes=12)
     while i < max_it:
+
         i += 1
         print(f"Depth {i}\n lengtht of user dict: {len(user_dict.keys())}")
 
-        # print(type(new_users))
-        # if not isinstance(new_users, set):
-        #     print(list(new_users))
-        #     print(type(list(new_users)[0]))
-        #     new_users = set(new_users)
-        # print(type(list(new_users)[0]))
-        # print(type(visited_users))
         new_users = new_users.difference(visited_users)
 
         data = [(sub_user, user_dict) for sub_user in new_users if sub_user]
@@ -124,16 +116,16 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
         result = pool.map(iteration, data)
 
         visited_users.update(new_users)
-        
-        users_to_update_with = filter(None, map(lambda x: x[0] if x else None, result))
-        # print(users_to_update_with)
+
+        users_to_update_with = filter(
+            None, map(lambda x: x[0] if x else None, result))
         dict_updates = filter(None, map(lambda x: x[1] if x else None, result))
+
         for user_name, content in dict_updates:
             user_dict[user_name] = content
-            
-        
-        
-        new_users = set([user for user_list in users_to_update_with for user in user_list if user])
+
+        new_users = set(
+            [user for user_list in users_to_update_with for user in user_list if user])
         users_to_update_with = set()
 
     return user_dict
@@ -148,15 +140,15 @@ def main(start_user, depth, num_tweets):
     n_tweets = num_tweets
 
     result_dict = start_from_user(start_user, depth, n_tweets)
+
     for user, content in result_dict.items():
         for mentioned in content[1]:
-            edges.append((user,mentioned))
+            edges.append((user, mentioned))
 
     col_a = set(list(map(lambda x: x[0], edges)))
 
-    edges_set =  set(edges)
+    edges_set = set(edges)
     out_edges = []
-
 
     for edge in edges:
         if (edge[1], edge[0]) in edges_set:
@@ -166,26 +158,37 @@ def main(start_user, depth, num_tweets):
             except KeyError:
                 continue
 
+    edge_attr_dict = {}
+    for edge in out_edges:
+        edge_attr_dict[edge] = edges.count(edge)
+        
     len_node_info = len(user_info.keys())
     unique_nodes = len(set(map(lambda x: x[0], out_edges)))
+
     print(f"{unique_nodes} unique users in edgelist and {len_node_info} counts of node information")
 
-    user_info_pd = pd.DataFrame.from_dict(user_info, orient = "index")
+    user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
     user_info_pd.to_csv("user_info.csv")
 
 
+    
     with open('edge_list.csv', 'w') as handle:
         writer = csv.writer(handle)
         writer.writerows(out_edges)
     with open('user_info.json', 'w') as handle:
         json.dump(user_info, handle)
 
-    environment = os.environ              
+    with open('edge_attributes.json', 'w') as handle:
+        json.dump(edge_attr_dict, handle)
+        
+    environment = os.environ
     environment["R_LIBS_USER"] = os.getcwd() + "/R_libraries"
     with TemporaryEnvironment(environment):
-        retcode = subprocess.call("R < network_analysis_tool.R --no-save", shell=True)
+        retcode = subprocess.call(
+            "R < network_analysis_tool.R --no-save", shell=True)
 
     return user_info_pd
+
 
 if __name__ == "__main__":
 
@@ -195,7 +198,6 @@ if __name__ == "__main__":
     #     method2()
     # else:
     #     print("Invalid argument")
-    
 
     start_user = sys.argv[1]
     depth = int(sys.argv[2])
@@ -217,7 +219,6 @@ if __name__ == "__main__":
     # edges_set =  set(edges)
     # out_edges = []
 
-
     # for edge in edges:
     #     if (edge[1], edge[0]) in edges_set:
     #         out_edges.append(edge)
@@ -233,15 +234,13 @@ if __name__ == "__main__":
     # user_info_pd = pd.DataFrame.from_dict(user_info, orient = "index")
     # user_info_pd.to_csv("user_info.csv")
 
-
     # with open('edge_list.csv', 'w') as handle:
     #     writer = csv.writer(handle)
     #     writer.writerows(out_edges)
     # with open('user_info.json', 'w') as handle:
     #     json.dump(user_info, handle)
 
-    # environment = os.environ              
+    # environment = os.environ
     # environment["R_LIBS_USER"] = os.getcwd() + "/R_libraries"
     # with TemporaryEnvironment(environment):
     #     retcode = subprocess.call("R < network_analysis_tool.R --no-save", shell=True)
-
