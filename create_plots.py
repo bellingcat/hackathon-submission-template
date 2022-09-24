@@ -2,7 +2,7 @@ import pandas
 import plotly.graph_objects as go
 import networkx as nx
 import json
-from plotting import plot_network
+from plotting import plot_network, plot_analysis, plot_followers, plot_posts
 from pathlib import Path
 
 
@@ -16,12 +16,11 @@ def scale_dict_values(in_dict):
 
     return out_dict
 
-data_path = Path("Data/2022-09-24_20-27")
 
-def plot(data_path : Path):
+def plot_all(data_path : Path, out_path : Path):
 
     edge_df = pandas.read_csv(data_path / "edge_list.csv", header= None)
-    # user_info_df = pandas.read_csv("user_info.csv")
+    user_info_df = pandas.read_csv(data_path / "user_attributes.csv")
 
     with open(data_path / "edge_list.json", "r") as handle:
         edges = json.load(handle)
@@ -48,5 +47,12 @@ def plot(data_path : Path):
     pos = nx.spring_layout(g)
 
     plot_network(g, pos, scaled_edge_attributes, user_attributes)
+    plot_followers(user_info_df, out_path)
+    plot_analysis(g, user_info_df, out_path,)
+    plot_posts(user_info_df, out_path)
 
 
+if __name__ == "__main__":
+    data_path = Path("Data/2022-09-24_20-59")
+    out_path = data_path
+    plot_all(data_path, out_path)

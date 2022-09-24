@@ -152,8 +152,6 @@ def main(start_user, depth, num_tweets):
         
 
     
-    user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
-    user_info_pd.to_csv("user_attributes.csv")
 
     
 
@@ -171,6 +169,9 @@ def main(start_user, depth, num_tweets):
                        "number of tweets searched per user": n_tweets}
 
 
+    user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
+
+    user_info_pd.to_csv(run_path / "user_attributes.csv")
 
     with open((run_path / 'run_info.json'), 'w') as handle:
         json.dump(run_params_dict, handle)

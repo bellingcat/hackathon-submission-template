@@ -1,6 +1,10 @@
 import plotly.graph_objects as go
-
 import networkx as nx
+from pathlib import Path
+import plotly_express as px
+import networkx as nx
+from networkx.exception import NetworkXError
+import numpy as np
 
 def make_edge(x, y, text, width):
     
@@ -61,10 +65,6 @@ def plot_network(graph, pos, edge_attrs, node_attrs):
                                             line  = None))
 
 
-    # verified = nx.get_node_attributes(G, "verified").values()
-    # verified = list(map(lambda x: "verified" if x else "not verified", verified))
-    # follower_count = nx.get_node_attributes(G, "#friends").values()
-    # attrs = zip(verified,follower_count)
 
     for node in G.nodes():
         x, y = pos[node]
@@ -72,52 +72,17 @@ def plot_network(graph, pos, edge_attrs, node_attrs):
         node_trace['y'] += (y,)
         color = "cornflowerblue" if node_attrs[node]["verified"] else "green"
         size  = node_attrs[node]["scaled_friends"] * 60 + 10
-        # print(size)
-        # node_trace["marker"]["size"] = node_attrs[node]["#friends"] + 10
-        # node_trace["marker"]["size"] =  10
         verified = "verified" if node_attrs[node]["verified"] else "not verified"
         text = f"{node}\n {verified} \n #followers: {node_attrs[node]['#friends']}"
         node_trace["marker"]["color"] += (color,)
         node_trace["marker"]["size"] += (size,)
-        print(node_trace["marker"])
         node_trace['hovertext'] += (text,)
         node_trace['text'] += (node,)
 
-    # node_trace = go.Scatter(
-    #     x=node_x, y=node_y,
-    #     mode='markers',
-    #     hoverinfo='text',
-    #     hoverlabel=dict(font=dict(family='sans-serif', size=25)),
-    #     marker=dict(
-    #         showscale=True,
-    #         # colorscale options
-    #         #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
-    #         #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
-    #         #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-    #         colorscale='YlGnBu',
-    #         reversescale=True,
-    #         color=[],
-    #         size=10,
-    #         colorbar=dict(
-    #             thickness=15,
-    #             title='Node Connections',
-    #             xanchor='left',
-    #             titleside='right'
-    #         ),
-    #         line_width=2))
-    # node_adjacencies = []
-    # node_text = []
-    # for node, adjacencies in enumerate(attrs):
-    #     node_adjacencies.append(adjacencies[1]/1000)
-        
-    #     node_text.append(adjacencies[0])
-
-    # node_trace.marker.size = node_adjacencies
-    # node_trace.text = node_text
 
     fig = go.Figure(layout=go.Layout(
                     title='<br>Title Here',
-                    # titlefont_size=16,
+                    titlefont_size=16,
                     autosize=True,
                     showlegend=False,
                     hovermode='closest',
@@ -134,3 +99,78 @@ def plot_network(graph, pos, edge_attrs, node_attrs):
         fig.add_trace(trace)
     fig.add_trace(node_trace)
     fig.show()
+
+def plot_followers(user_info_df, output_dir : Path):
+    follower_df = user_info_df.sort_values('#followers')
+    follower_df = follower_df.tail(20)
+
+    fig_follower = px.bar(follower_df, x='Unnamed: 0',y='#followers',
+                        color= '#followers', color_continuous_scale= 'deep',
+                labels={
+                    "Unnamed: 0" : "username",
+                    "#followers" : "number of followers"},
+                        )
+    fig_follower.update_traces(hovertemplate='username: %{x}'+'<br>followers: %{y}')
+    fig_follower.update_layout(title_text= "accounts with most followers", title_x= 0.5)
+    fig_follower.update_layout({
+    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+    'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+    })
+    fig_follower.write_html(output_dir/ "follower_plot.html")
+
+def plot_posts(user_info_df, output_dir : Path):
+    post_df = user_info_df.sort_values('#posts')
+    post_df = post_df.tail(20)
+
+    fig_post = px.bar(post_df, x='Unnamed: 0', y='#posts',
+                    color= '#posts', color_continuous_scale= 'deep',
+                labels={
+                    "Unnamed: 0" : "username",
+                    "#posts" : "number of posts"})
+    fig_post.update_traces(hovertemplate='username: %{x}'+'<br>posts: %{y}')
+    fig_post.update_layout(title_text= "accounts with most posts", title_x= 0.5)
+    fig_post.update_layout({
+    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+    'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+    })
+
+    fig_post.write_html(output_dir / "post_plot.html")
+
+def plot_analysis(g, user_info_df, output_dir : Path):
+    n_users = user_info_df.shape[0]
+
+    #degree_centrality = nx.degree_centrality(g)
+    degree_centrality = dict(g.degree()) #this is raw and therefore what we want (I am not sure if is degree scientifically speaking)
+    avg_centrality = round(sum(degree_centrality.values())/len(degree_centrality.values()),2)
+    most_connections = round(max(degree_centrality.values()), 2)
+    most_connected = max(degree_centrality, key=degree_centrality.get)
+
+    try:
+        path_lenght = nx.average_shortest_path_length(g) #get added here because this code will err if graph is not fully connected
+    except NetworkXError:
+        print("graph is not fully connected")
+        path_lenght = None
+    ncomps = nx.number_connected_components(g)
+    members_largest_c = max(nx.connected_components(g), key=len) #will see later what to do with this, not fitting for table
+    size_larges_c = len(members_largest_c)
+    prop_largest_comp = round((size_larges_c/n_users)*100, 2)
+
+    analysis_data = np.array([str(n_users), str(avg_centrality),str(most_connected), str(most_connections), str(path_lenght),
+                            str(ncomps), str(size_larges_c), str(prop_largest_comp)])
+    rows = ['number of users', 'average number of connections', 'most connected user', 'number of their connections',
+            'average distance between two members', 'number of components', 'size of the largest component',
+            'proportion of the largest component']
+    fig_analysis = go.Figure(data=[go.Table( header= dict(fill_color= 'white'),
+        cells=dict(values=[rows, analysis_data],
+                line_color='white',
+                fill_color='lightblue',
+                align='left'))
+    ])
+
+    fig_analysis.write_html(output_dir / "descriptive_network_statistics.html")
+
+    print('The network has ' + str(n_users) + ' members.' +
+        ' \nThe average user has ' + str(avg_centrality) + " connections." +
+        ' \nThe most connected user is ' + str(most_connected) + ' with ' + str(most_connections) + ' connections.' +
+        ' \nThe network has ' + str(ncomps) + ' components, \nwhere the largest component has ' + str(size_larges_c) + ' members ' +
+        ' and makes up ' + str(prop_largest_comp) + ' % of the network.' )
