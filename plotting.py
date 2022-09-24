@@ -100,6 +100,8 @@ def plot_network(graph, pos, edge_attrs, node_attrs):
     fig.add_trace(node_trace)
     fig.show()
 
+    fig.write_html(output_dir / "network_plot.html")
+
 def plot_followers(user_info_df, output_dir : Path):
     follower_df = user_info_df.sort_values('#followers')
     follower_df = follower_df.tail(20)
