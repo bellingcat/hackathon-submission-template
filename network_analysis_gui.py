@@ -229,7 +229,10 @@ def run_gui():
                                 # which should call and store the results, then aggregate them all
                                 # the run_network_analysis returns the following data files (and filepath)
                                 # run_path, run_params_dict, out_edges, user_info, edge_attr_dict
-                                results.append(run_network_analysis(row, save=False))
+
+                                # when the function for aggregating and saving all the files togethe is complete, 
+                                #change first param to False
+                                results.append(run_network_analysis(True, row))
                                 print(i)
                                 time.sleep(1)
                                 update_val = 100*(i+1)/len(query_df)
@@ -239,19 +242,22 @@ def run_gui():
                                 current_window.refresh()
                         except Exception as E:
                             error_msg = '\n'.join(['Error in code (please reach out to admin: ', str(E.__class__), str(E.__str__())])
-                            results = aggregate_all_the_results(results, save=True)
+                            # Uncomment when fn ready
+                            # agg_results = aggregate_all_the_results(True, results)
                             current_window.close()
                             current_window = generate_post_error_intro_window(project_name_, 
                                                                             f"""Error occurred while running multiple queries. Nr of queries run successfully = {i}:
                                                                             Saving partial data recovered to {results[0]}. Saving remaining queries for future inside
-                                                                            {results[0]}/remaining_queries.csv"""
+                                                                            {results[-1][0]}/remaining_queries.csv"""
                                                                             )
                             query_remain = query_df.iloc[i:]
-                            query_remain.to_csv(f'{results[0]}/remaining_queries.csv')
+                            query_remain.to_csv(f'{results[-1][0]}/remaining_queries.csv')
                             continue
 
                         # add all the results together and then save them
-                        results = aggregate_all_the_results(results, save=True)
+                        # Uncomment when fn ready
+                        
+                        # agg_results = aggregate_all_the_results(results, save=True)
 
                         # and output them to a useful location
 
@@ -346,7 +352,24 @@ def run_gui():
 
     return
 
-def aggregate_all_the_results():
+def aggregate_all_the_results(save:bool=True, *args):
+    """Function takes a list of results, where each result should have the following stored
+    run_path, run_params_dict, out_edges, user_info, edge_attr_dict
+
+    1. Take the last run_path (it should the same anyway)
+    2. Concatenate the params dict
+    3. For all the others, add an id var, then concatenate them. 
+    4. Finally, pass them all to the saving function
+    """    
+
+    for lst_of_results in args:
+        _, run_params_dict, out_edges, user_info, edge_attr_dict = lst_of_results
+
+    #taking last runpath
+    run_path = args[-1][0]
+
+    if save:
+        TANV.save_query_results(run_path, run_params_dict, out_edges, user_info, edge_attr_dict)
 
     return
 
@@ -567,9 +590,10 @@ def run_network_analysis(**kwargs):
     project_name = process_filename(kwargs['-PROJECT-NAME-'])
     
     print(f'Search: {main_user}; Depth: {max_rec_dep}, Max tweets: {max_n_tweets}')
-    df = TANV.main(main_user, max_rec_dep, max_n_tweets, project_name)
+    # results are : run_path, run_params_dict, out_edges, user_info, edge_attr_dict 
+    results_ = TANV.main(main_user, max_rec_dep, max_n_tweets, project_name)
 
-    return df
+    return results_
 
 def process_filename(x:str)->str:
     """Checks a filename for special characters and the like that would cause an error in filesaving and removes them, as well as spaces
