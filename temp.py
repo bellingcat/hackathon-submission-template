@@ -25,7 +25,6 @@ fig_follower.update_layout({
 'paper_bgcolor': 'rgba(0, 0, 0, 0)',
 })
 fig_follower.write_html("accounts_with_most_followers.html")
-
 #def bar_plot_posts(info_df):
 post_df = info_df.sort_values('#posts')
 post_df = post_df.tail(20)
@@ -42,11 +41,11 @@ fig_post.update_layout({
 'paper_bgcolor': 'rgba(0, 0, 0, 0)',
 })
 fig_post.write_html("accounts_with_most_posts.html")
-
 #def analysis_plot(analysis data) :
 g = nx.from_pandas_edgelist(df = edge_df, source = 0, target = 1) #unsure if we will need this in the final version
 nusers = info_df.shape[0]
-degree_centrality = nx.degree_centrality(g)
+#degree_centrality = nx.degree_centrality(g)
+degree_centrality = dict(g.degree()) #this is raw and therefore what we want (I am not sure if is degree scientifically speaking)
 avg_centrality = round(sum(degree_centrality.values())/len(degree_centrality.values()),2)
 most_connections = round(max(degree_centrality.values()), 2)
 most_connected = max(degree_centrality, key=degree_centrality.get)
@@ -58,12 +57,11 @@ prop_largest_comp = round((size_larges_c/nusers)*100, 2)
 
 analysis_data = np.array([str(nusers), str(avg_centrality),str(most_connected), str(most_connections), str(paths),
                           str(ncomps), str(size_larges_c), str(prop_largest_comp)])
-rows = ['number of users', 'average number of connections', 'most connected member', 'number of their connections',
+rows = ['number of users', 'average number of connections', 'most connected user', 'number of their connections',
         'average distance between two members', 'number of components', 'size of the largest component',
         'proportion of the largest component']
 fig_analysis = go.Figure(data=[go.Table( header= dict(fill_color= 'white'),
-    cells=dict(values=[rows, # 1st column
-                       analysis_data], # 2nd column
+    cells=dict(values=[rows, analysis_data],
                line_color='white',
                fill_color='lightblue',
                align='left'))
@@ -71,10 +69,9 @@ fig_analysis = go.Figure(data=[go.Table( header= dict(fill_color= 'white'),
 
 fig_analysis.write_html("descriptive_network_statistics.html")
 
-
 print('The network has ' + str(nusers) + ' members.' +
-      'The average centrality is ' + str(avg_centrality) + "." +
-      ' \nThe most central member is ' + str(most_connected) + ' with ' + str(most_connections) + ' connections.' +
+      ' \nThe average user has ' + str(avg_centrality) + " connections." +
+      ' \nThe most connected user is ' + str(most_connected) + ' with ' + str(most_connections) + ' connections.' +
       ' \nThe network has ' + str(ncomps) + ' components, \nwhere the largest component has ' + str(size_larges_c) + ' members ' +
       ' and makes up ' + str(prop_largest_comp) + ' % of the network.' )
 
