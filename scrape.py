@@ -213,7 +213,7 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
 
     data_path = Path(f"Data/{project_name}/")
     day = dt.datetime.now().date().isoformat() + "_"
-    time = str(dt.datetime.now().hour)+ "-" + str(dt.datetime.now().minute)
+    time = str(dt.datetime.now().hour)+ "-" + str(dt.datetime.now().minute) + str(dt.datetime.now().second)
     
 
     run_path = data_path / (day + time)
