@@ -6,6 +6,7 @@ import numpy as np
 import time
 from datetime import datetime
 import PySimpleGUI as sg
+import re
 
 import multi_scrape as TANV
 
@@ -59,7 +60,7 @@ def generate_intro_window_layout(project_name_ = f'{name_of_tool} project', **kw
 
     layout = [intro_row,
             [sg.Text('A.', font=(menu_font, 20)), sg.HorizontalSeparator(key='sep')],
-            get_simple_str_input_w_key("1. Enter the name of your analysis project (for your own record-keeping purposes)", '-PROJECT_NAME-', project_name_, font_tuple, **kwargs),
+            get_simple_str_input_w_key("1. Enter the name of your analysis project (for your own record-keeping purposes)", '-PROJECT-NAME-', project_name_, font_tuple, **kwargs),
             get_simple_str_input_w_key("2. Enter your Twitter user to search:", '-TWITTER-SEARCH-USER-', '', font_tuple, **kwargs),
             get_simple_str_input_w_key("3. Enter the maximum recursive depth* you'd like to explore to: ", '-MAX-REC-DEPTH-', 2 , font_tuple, **kwargs),
             get_simple_str_input_w_key("4. Enter the maximum number of Tweets you'd like to retrieve:", "-MAX-N-TWEETS-", 10, font_tuple, **kwargs),
@@ -83,17 +84,26 @@ def add_progress_bar_into_layout(layout:list, loc:int=-2, key:str='-PROG-BAR-', 
         layout: list
     """    
 
-    prog_bar = [sg.ProgressBar(max_value=max_val, orientation='horizontal', 
-                                bar_color=('grey', 'green'), key=key)]
+    # insert the progress bar itself
+    prog_bar = [sg.ProgressBar(max_value=max_val, size=(60, 20), border_width=4, key=key,bar_color=['Green', 'Grey'])]
     layout.insert(loc, prog_bar)
+
+    #add display text
+    start_txt = "Initiating Snscrape queries (you may need to click 'RUN APP' again) ..."
+    prog_bar_disp = [sg.Text(start_txt, font=(menu_font, menu_txt_font_size), key='-PROG-BAR-DISPLAY-')]
+    
+    layout.insert(loc-1, prog_bar_disp)
     return layout
 
-def generate_intro_window_w_prog_bar(**kwargs):
-    """Generates
+def generate_intro_window_w_prog_bar(project_name_, **kwargs):
+    """Generates the intro menu window but with a progress bar showing how many queries have been completed
 
     Args:
         layout (list): _description_
     """    
+    layout = generate_intro_window_layout(project_name_, **kwargs)
+    layout = add_progress_bar_into_layout(layout)
+    return sg.Window(project_name_, layout, finalize=True)
 
 
 def get_simple_str_input_w_key(input_str:str, key:str, default_txt:str='', font:tuple = (menu_font, menu_txt_font_size), **kwargs)->list:
@@ -130,7 +140,7 @@ def run_gui():
         event, values = current_window.read()
 
         #get user project name from value entered
-        project_name_ = values['-PROJECT_NAME-']
+        project_name_ = values['-PROJECT-NAME-']
 
         try:
             # if-elif-else statements that trigger actions
@@ -154,14 +164,25 @@ def run_gui():
                 
                     else:
                         # no errors for the file returned
+                        # add the progress bar to the menu
+                        current_window.close()
+                        current_window = generate_intro_window_w_prog_bar(project_name_, **values)
+                        event, values = current_window.read()
+
                         # so pass forward
                         results = []
                         query_df = get_query_df(filepath_selected)
                         for i, row in query_df.iterrows():
                             #  pass each row over to the wrapper_fn for TANV.main()
                             # which should call and store the results, then aggregate them all
-                            results.append(run_network_analysis(row))
+                            # results.append(run_network_analysis(row))
                             print(i)
+                            time.sleep(1)
+                            update_val = 100*(i+1)/len(query_df)
+                            text_update = f"Executed {i+1} out of {len(query_df)} queries"
+                            current_window['-PROG-BAR-DISPLAY-'].update(text_update)
+                            current_window['-PROG-BAR-'].update(update_val)
+                            current_window.refresh()
 
 
                         # concatenate the results
@@ -280,7 +301,7 @@ def try_out_params_file_cols_and_types(filepath:str)->tuple:
     # controlling error msg length
     max_error_msg_len = 300
     if len(error_msg)>max_error_msg_len:
-        error_msg = error_msg[:max_error_msg_len-5] + ' ... (error msg truncated due to length)' 
+        error_msg = error_msg[:max_error_msg_len-5] + ' ... (error message truncated due to length)' 
 
     return error_status, error_msg
 
@@ -360,9 +381,31 @@ def run_network_analysis(**kwargs):
     max_rec_dep = int(kwargs['-MAX-REC-DEPTH-'])
     max_n_tweets = int(kwargs['-MAX-N-TWEETS-'])
 
-    df = TANV.main(main_user, max_rec_dep, max_n_tweets)
+    project_name = process_filename(kwargs['-PROJECT-NAME-'])
+
+    df = TANV.main(main_user, max_rec_dep, max_n_tweets, project_name)
 
     return df
+
+def process_filename(x:str)->str:
+    """Checks a filename for special characters and the like that would cause an error in filesaving and removes them, as well as spaces
+
+    Args:
+        x (str): proposed filename
+
+    Returns:
+        str: cleaned version
+    """    
+
+    x = x.replace('\\', '')
+    x = x.replace('/', '')
+    x = x.replace('.', '')
+    x = x.replace('*', '')
+    x = x.replace('\\', '')
+    x = x.replace(' ', '_')
+    x = re.subn(r'[`$&+,:;=?@#|\'<>.^*()%!\-]', '', x)[0]
+
+    return x
 
 
 if __name__=='__main__':
