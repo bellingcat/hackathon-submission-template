@@ -117,7 +117,7 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
     return user_dict
 
 
-def main(start_user, depth, num_tweets):
+def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_name'):
 
     edges = []
     user_info = {}
