@@ -448,7 +448,7 @@ def try_out_params_file_cols_and_types(filepath:str)->tuple:
 
     # check columns
 
-    df_cols = list(df.columns)
+    df_cols = [x.strip() for x in df.columns]
     necessary_cols = ['SEARCH_USER', 'MAX_DEPTH', 'MAX_NUMBER_TWEETS']
     if len(set(df_cols).intersection(set(necessary_cols)))!=len(necessary_cols):
         error_status=True
@@ -493,6 +493,7 @@ def get_query_df(fpath:str):
     elif fpath.endswith('xlsx'):
         df = pd.read_excel(fpath)
 
+    df.columns = [x.strip() for x in df.columns]
     return df
 
 
