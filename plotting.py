@@ -32,7 +32,7 @@ def make_edge(x, y, text, width):
 
 
 
-def plot_network(graph, pos, edge_attrs, node_attrs):
+def plot_network(graph, pos, edge_attrs, node_attrs, output_dir):
     G = graph
 
     #create edge trace

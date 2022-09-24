@@ -46,7 +46,7 @@ def plot_all(data_path : Path, out_path : Path):
     nx.set_node_attributes(g, user_attributes) 
     pos = nx.spring_layout(g)
 
-    plot_network(g, pos, scaled_edge_attributes, user_attributes)
+    plot_network(g, pos, scaled_edge_attributes, user_attributes, out_path)
     plot_followers(user_info_df, out_path)
     plot_analysis(g, user_info_df, out_path,)
     plot_posts(user_info_df, out_path)
