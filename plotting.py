@@ -81,12 +81,12 @@ def plot_network(graph, pos, edge_attrs, node_attrs, output_dir):
 
 
     fig = go.Figure(layout=go.Layout(
-                    title='<br>Title Here',
-                    titlefont_size=16,
+                    title='Network plot',
+                    # titlefont_size=20,
                     autosize=True,
                     showlegend=False,
                     hovermode='closest',
-                    # margin=dict(b=20,l=5,r=5,t=40),
+                    margin=dict(b=20,l=5,r=5,t=40),
                     # annotations=[ dict(
                     #     text="annotation here",
                     #     showarrow=False,
