@@ -1,0 +1,336 @@
+import json
+import os
+import pandas as pd
+import numpy as np
+import time
+from datetime import datetime
+import PySimpleGUI as sg
+
+import multi_scrape as TANV
+
+global name_of_tool
+name_of_tool = 'TANV (Working title)'
+
+menu_txt_font_size = 16
+menu_font = 'Arial'
+menu_color = 'black'
+
+def main():
+    """Main call of py script
+    """    
+    # call up the gui
+
+    run_gui()
+
+    return
+
+def generate_intro_window(project_name_:str = f'{name_of_tool} project'):
+    return sg.Window(name_of_tool, 
+                    generate_intro_window_layout(project_name_))
+
+def generate_intro_window_layout(project_name_ = f'{name_of_tool} project') -> list:
+    """Fn declares and returns a list of lists where each sub-list is a row in the PySG Intro GUI menu.
+    Returns:
+        list: menu layout
+
+    ``` Title:
+    Welcome statement
+
+    Enter Project name: ... 
+    Options:
+    1. Enter the name of your analysis project (for your own record-keeping purposes)
+    2. Enter your Twitter search term:
+    3. Enter the maximum recursive depth* you'd like to explore to: 
+    4. Enter the maximum number of Tweets you'd like to retrieve:
+    5. Run App
+
+    ```
+
+    """    
+
+    intro_row = [sg.Text(f"""Welcome to the {name_of_tool} Tool!\nTo get data and analysis for a single query, go to section A.\nTo do so for multiple queries, go to section B.\n""", 
+                font=(menu_font, menu_txt_font_size) )]
+
+
+    close_button_row = [sg.Button('Close', key='CLOSE'),]
+
+    layout = [intro_row,
+            [sg.Text('A.', font=(menu_font, 20)), sg.HorizontalSeparator(key='sep')],
+            get_simple_str_input_w_key("1. Enter the name of your analysis project (for your own record-keeping purposes)", '-PROJECT_NAME-', project_name_),
+            get_simple_str_input_w_key("2. Enter your Twitter user to search:", '-TWITTER-SEARCH-USER-'),
+            get_simple_str_input_w_key("3. Enter the maximum recursive depth* you'd like to explore to: ", '-MAX-REC-DEPTH-'),
+            get_simple_str_input_w_key("4. Enter the maximum number of Tweets you'd like to retrieve:", "-MAX-N-TWEETS-"),
+            [sg.Text('B.', font=(menu_font, 20)), sg.HorizontalSeparator(key='sep')],
+            get_simple_str_display('If you want to perform multiple searches, select an Excel/CSV file.\nIt *must* have following columns present:\n\nSEARCH_TERM, MAX_DEPTH, MAX_NUMBER_TWEETS\n',), 
+            get_file_browse_input_w_key('Select your queries file:', '-PARAMS-FILE-', ),
+            [sg.HorizontalSeparator(key='sep')],
+            get_simple_button_w_key("RUN TOOL", "-RUN-APP-"),
+            close_button_row,
+                    ]
+    return layout   
+
+def get_simple_str_input_w_key(input_str:str, key:str, default_txt:str='', font:tuple = (menu_font, menu_txt_font_size))->list:
+    return [sg.Text(input_str, font=font), 
+                    sg.Input(default_txt, key=key),]
+
+
+def get_file_browse_input_w_key(disp_str:str, key:str, font:tuple=(menu_font, menu_txt_font_size))->list:
+    return [sg.Text(disp_str, font=font), sg.FileBrowse('Select file', file_types=(('.csv', '.xlsx'),), initial_folder='.', key=key)]
+
+
+def get_simple_button_w_key(button_label:str, key:str, font:tuple=(menu_font, menu_txt_font_size))->list:
+    return [sg.Button(button_label,
+                    key=key,
+                    font=font,)
+                             ]
+
+def run_gui():
+
+    #set the GUI theme
+    
+    sg.theme('BlueMono')
+    project_name_ = f'{name_of_tool} project'
+    #init intro window
+    current_window = generate_intro_window(project_name_)
+    while True:
+
+        #read the user inputs
+
+        event, values = current_window.read()
+
+        #get user project name from value entered
+        project_name_ = values['-PROJECT_NAME-']
+
+        try:
+            # if-elif-else statements that trigger actions
+            if event=='-RUN-APP-':
+
+                # check if a file has been selected in section B
+                # if it has, then load and iterate over those values
+                filepath_selected = values['-PARAMS-FILE-']
+                if len(filepath_selected)>0:
+                    # if there is an actual filepath, pass it through the error checking function
+                    handle_key_error_return = try_out_params_file_cols_and_types(filepath_selected)
+                    error_status = handle_key_error_return[0]
+                    if error_status==True:
+                        error_msg = handle_key_error_return[1]
+                        # include a trigger for an erroneous trigger/event/input
+                        current_window.close()
+                        current_window = generate_post_error_intro_window(project_name_, error_msg)
+                        # event, values = current_window.read()
+                        continue
+
+                
+                    else:
+                        # no errors for the file returned
+                        # so pass forward
+                        results = []
+                        query_df = get_query_df(filepath_selected)
+                        for i, row in query_df.iterrows():
+                            #  pass each row over to the wrapper_fn for TANV.main()
+                            # which should call and store the results, then aggregate them all
+                            # results.append(run_network_analysis(row))
+                            print(i)
+
+                        # concatenate the results
+                        results_df = pd.concat(results, ignore_index=True)
+
+                        # and output them to a useful location
+
+                else:
+                    # in the case where they use section A instead and just do a single query
+                    #first check the inputs and display an error msg in case any are wrong
+                    handle_key_error_return = try_out_kwarg_values_and_types(**values)
+                    error_status = handle_key_error_return[0]
+                    if error_status==True:
+                        error_msg = handle_key_error_return[1]
+                        # include a trigger for an erroneous trigger/event/input
+                        current_window.close()
+                        current_window = generate_post_error_intro_window(project_name_, error_msg)
+                        # event, values = current_window.read()
+                        continue
+                    else:
+                        # if no error returned then now do the network analysis
+                        run_network_analysis(**values)
+
+            # NOTE: here I am just adding suggestions for other things to implement
+            # e.g. if a user wants to run the analysis component again on data that was already stored,
+            # especially if a user has multiple data files unmerged in a location
+            # elif event=='RERUN-ANALYSIS':
+            #     rerun_analysis_on_data_stored_locally(**values)
+
+
+            # final event-trigger for closing GUI
+            elif event=='Close' or event=='CLOSE' or event==sg.WIN_CLOSED:
+                current_window.close()
+                break
+
+        except Exception as E:
+            error_msg = '\n'.join(['Error in code (please reach out to admin: ', str(E.__class__), str(E.__str__())])
+            # raise E
+            current_window.close()
+            current_window = generate_post_error_intro_window(project_name_, error_msg)
+            # event, values = current_window.read()
+            continue
+
+
+
+    return
+
+def try_out_params_file_cols_and_types(filepath:str)->tuple:
+    """Function checks the input file of search parameters and 
+    1. Checks for file existence
+    2. Checks that it is tabular (csv/xlsx) and can be read by pandas
+    3. Checks that the correct columns are present
+    4. Checks that each row of the table contains usable, correctly specified parameters
+
+    Params:
+    filepath - path to table of query params
+
+    Returns:
+        tuple: (error status : True if an error has occurred, error_message : blank if no error present)
+    """    
+    error_status, error_msg = False, 'ERROR : '
+
+    if os.path.exists(filepath)==False:
+        error_status=True
+        error_msg += f'\n--File could not be found'
+        return error_status, error_msg
+
+    
+    if (filepath.endswith('csv') or filepath.endswith('xlsx'))==False:
+        error_status=True
+        error_msg += f'\n--Query file needs to be either a CSV or XLSX file'
+        return error_status, error_msg
+
+
+    try:
+        df = get_query_df(filepath)
+    except:
+        error_status=True
+        error_msg += f'\n--File is not readable - it is possibly corrupted'
+        return error_status, error_msg
+
+
+    # check columns
+
+    df_cols = list(df.columns)
+    necessary_cols = ['SEARCH_TERM', 'MAX_DEPTH', 'MAX_NUMBER_TWEETS']
+    if len(set(df_cols).intersection(set(necessary_cols)))!=len(necessary_cols):
+        error_status=True
+        missing_cols = [x for x in necessary_cols if x not in df_cols]
+        error_msg += f'\n--File is missing the following columns: {missing_cols}'
+        return error_status, error_msg
+
+    # at this point we iterate over rows and check for errors:
+    row_error_status, row_error_msg = False, ''
+    for i, row in df.iterrows():
+        #unpack the values
+        search = row['SEARCH_TERM']
+        max_rec_dep = row['MAX_DEPTH']
+        max_n_tweets = row['MAX_NUMBER_TWEETS']
+
+        #get the results for that row
+        # print(search, max_rec_dep, max_n_tweets)
+        row_status, row_error_msg = try_out_query_params_values_and_types(search, max_rec_dep, max_n_tweets, '')
+
+        if row_status:
+            row_error_status = True
+            error_msg += f'\nTable row {i} : {row_error_msg}'
+            print(i, error_msg)
+        else:
+            continue
+
+    # if either level of error is True, then set overall to True
+    if (error_status==True or row_error_status==True):
+        error_status = True
+    
+    #append the row error messages to previous error msg
+    # if row_error_status:
+    #     error_msg = error_msg + '\n' + row_error_msg
+
+    return error_status, error_msg
+
+def get_query_df(fpath:str):
+
+    if fpath.endswith('csv'):
+        df = pd.read_csv(fpath)
+    elif fpath.endswith('xlsx'):
+        df = pd.read_excel(fpath)
+
+    return df
+
+
+def try_out_kwarg_values_and_types(**kwargs)->tuple:
+    """Functions takes the tool input parameters and determines if any of them are incorrect/missing
+
+    Returns:
+        tuple: (error_status, error_message)
+    """    
+    
+
+    #unpack the values
+    search = kwargs['-TWITTER-SEARCH-USER-']
+    max_rec_dep = kwargs['-MAX-REC-DEPTH-']
+    max_n_tweets = kwargs['-MAX-N-TWEETS-']
+
+    return try_out_query_params_values_and_types(search, max_rec_dep, max_n_tweets)
+
+def try_out_query_params_values_and_types(search, max_rec_dep, max_n_tweets, error_msg_start:str='ERROR : ')->tuple:
+    
+    error_status, error_msg = False, error_msg_start
+    
+    minimum_search_len = 3
+
+    # now iterate through the inputs and see if an error will be thrown
+    try:
+        int(max_n_tweets)
+    except:
+        error_status=True
+        error_msg += f'\n--Maximum number of tweets ("{max_n_tweets}") is not a whole number'
+
+    try: 
+        int(max_rec_dep)
+    except:
+        error_status=True
+        error_msg += f'\n--Maximum recursion ("{max_rec_dep}") is not a whole number'
+    # NOTE: here we should add some 
+    if len(search)<minimum_search_len:
+        error_status=True
+        error_msg+=f'\n--User search term ("{search}") is too short'
+
+    return error_status, error_msg
+
+def generate_post_error_intro_window(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered'):
+    layout = generate_post_error_intro_window_layout(project_name_, key_error_msg)
+    return sg.Window(name_of_tool, layout)
+
+def generate_post_error_intro_window_layout(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered')->list:
+
+    layout = generate_intro_window_layout(project_name_ )
+    error_msg = get_simple_str_display(key_error_msg, text_colour='red')
+
+    layout.insert(1, error_msg)
+
+    return layout
+
+def get_simple_str_display(disp_str:str, font:tuple=(menu_font, menu_txt_font_size), text_colour = menu_color)->list:
+    return [sg.Text(disp_str, font= font, text_color=text_colour)]
+
+def run_network_analysis(**kwargs):    
+    """Wrapper function that unpacks the query arguments for a single SnScrape Query and then passes them to the main fn
+    of multi_scrape.py
+    """    
+
+    # now pass the arguments forward to the TANV tool
+    main_user = kwargs['-TWITTER-SEARCH-USER-']
+    max_rec_dep = kwargs['-MAX-REC-DEPTH-']
+    max_n_tweets = kwargs['-MAX-N-TWEETS-']
+
+    df = TANV.main(main_user, max_rec_dep, max_n_tweets)
+
+    return df
+
+
+if __name__=='__main__':
+    main()
