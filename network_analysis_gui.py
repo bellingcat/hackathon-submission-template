@@ -1,3 +1,4 @@
+from email.policy import default
 import json
 import os
 import pandas as pd
@@ -24,11 +25,11 @@ def main():
 
     return
 
-def generate_intro_window(project_name_:str = f'{name_of_tool} project'):
+def generate_intro_window(project_name_:str = f'{name_of_tool} project', **kwargs):
     return sg.Window(name_of_tool, 
-                    generate_intro_window_layout(project_name_))
+                    generate_intro_window_layout(project_name_, **kwargs))
 
-def generate_intro_window_layout(project_name_ = f'{name_of_tool} project') -> list:
+def generate_intro_window_layout(project_name_ = f'{name_of_tool} project', **kwargs) -> list:
     """Fn declares and returns a list of lists where each sub-list is a row in the PySG Intro GUI menu.
     Returns:
         list: menu layout
@@ -48,33 +49,62 @@ def generate_intro_window_layout(project_name_ = f'{name_of_tool} project') -> l
 
     """    
 
+    font_tuple = (menu_font, menu_txt_font_size)
     intro_row = [sg.Text(f"""Welcome to the {name_of_tool} Tool!\nTo get data and analysis for a single query, go to section A.\nTo do so for multiple queries, go to section B.\n""", 
-                font=(menu_font, menu_txt_font_size) )]
+                font=font_tuple )]
 
 
     close_button_row = [sg.Button('Close', key='CLOSE'),]
 
+
     layout = [intro_row,
             [sg.Text('A.', font=(menu_font, 20)), sg.HorizontalSeparator(key='sep')],
-            get_simple_str_input_w_key("1. Enter the name of your analysis project (for your own record-keeping purposes)", '-PROJECT_NAME-', project_name_),
-            get_simple_str_input_w_key("2. Enter your Twitter user to search:", '-TWITTER-SEARCH-USER-'),
-            get_simple_str_input_w_key("3. Enter the maximum recursive depth* you'd like to explore to: ", '-MAX-REC-DEPTH-'),
-            get_simple_str_input_w_key("4. Enter the maximum number of Tweets you'd like to retrieve:", "-MAX-N-TWEETS-"),
+            get_simple_str_input_w_key("1. Enter the name of your analysis project (for your own record-keeping purposes)", '-PROJECT_NAME-', project_name_, font_tuple, **kwargs),
+            get_simple_str_input_w_key("2. Enter your Twitter user to search:", '-TWITTER-SEARCH-USER-', '', font_tuple, **kwargs),
+            get_simple_str_input_w_key("3. Enter the maximum recursive depth* you'd like to explore to: ", '-MAX-REC-DEPTH-', 2 , font_tuple, **kwargs),
+            get_simple_str_input_w_key("4. Enter the maximum number of Tweets you'd like to retrieve:", "-MAX-N-TWEETS-", 10, font_tuple, **kwargs),
             [sg.Text('B.', font=(menu_font, 20)), sg.HorizontalSeparator(key='sep')],
             get_simple_str_display('If you want to perform multiple searches, select an Excel/CSV file.\nIt *must* have following columns present:\n\nSEARCH_TERM, MAX_DEPTH, MAX_NUMBER_TWEETS\n',), 
-            get_file_browse_input_w_key('Select your queries file:', '-PARAMS-FILE-', ),
+            get_file_browse_input_w_key('Select your queries file:', '-PARAMS-FILE-', font_tuple),
             [sg.HorizontalSeparator(key='sep')],
             get_simple_button_w_key("RUN TOOL", "-RUN-APP-"),
             close_button_row,
                     ]
     return layout   
 
-def get_simple_str_input_w_key(input_str:str, key:str, default_txt:str='', font:tuple = (menu_font, menu_txt_font_size))->list:
+def add_progress_bar_into_layout(layout:list, loc:int=-2, key:str='-PROG-BAR-', max_val:int=100)->list:
+    """Adds an empty progress bar to the menu, in the 2nd from last position (Default)
+
+    Args:
+        layout (list): current layout
+        loc (int, optional): location of progress bar in rows. Defaults to -2.
+
+    Returns:
+        layout: list
+    """    
+
+    prog_bar = [sg.ProgressBar(max_value=max_val, orientation='horizontal', 
+                                bar_color=('grey', 'green'), key=key)]
+    layout.insert(loc, prog_bar)
+    return layout
+
+def generate_intro_window_w_prog_bar(**kwargs):
+    """Generates
+
+    Args:
+        layout (list): _description_
+    """    
+
+
+def get_simple_str_input_w_key(input_str:str, key:str, default_txt:str='', font:tuple = (menu_font, menu_txt_font_size), **kwargs)->list:
+    if key in kwargs:
+        default_txt = kwargs[key]
+
     return [sg.Text(input_str, font=font), 
                     sg.Input(default_txt, key=key),]
 
 
-def get_file_browse_input_w_key(disp_str:str, key:str, font:tuple=(menu_font, menu_txt_font_size))->list:
+def get_file_browse_input_w_key(disp_str:str, key:str, font:tuple=(menu_font, menu_txt_font_size),)->list:
     return [sg.Text(disp_str, font=font), sg.FileBrowse('Select file', file_types=(('.csv', '.xlsx'),), initial_folder='.', key=key)]
 
 
@@ -92,6 +122,7 @@ def run_gui():
     project_name_ = f'{name_of_tool} project'
     #init intro window
     current_window = generate_intro_window(project_name_)
+    
     while True:
 
         #read the user inputs
@@ -116,7 +147,7 @@ def run_gui():
                         error_msg = handle_key_error_return[1]
                         # include a trigger for an erroneous trigger/event/input
                         current_window.close()
-                        current_window = generate_post_error_intro_window(project_name_, error_msg)
+                        current_window = generate_post_error_intro_window(project_name_, error_msg, **values)
                         # event, values = current_window.read()
                         continue
 
@@ -129,8 +160,9 @@ def run_gui():
                         for i, row in query_df.iterrows():
                             #  pass each row over to the wrapper_fn for TANV.main()
                             # which should call and store the results, then aggregate them all
-                            # results.append(run_network_analysis(row))
+                            results.append(run_network_analysis(row))
                             print(i)
+
 
                         # concatenate the results
                         results_df = pd.concat(results, ignore_index=True)
@@ -146,7 +178,7 @@ def run_gui():
                         error_msg = handle_key_error_return[1]
                         # include a trigger for an erroneous trigger/event/input
                         current_window.close()
-                        current_window = generate_post_error_intro_window(project_name_, error_msg)
+                        current_window = generate_post_error_intro_window(project_name_, error_msg, **values)
                         # event, values = current_window.read()
                         continue
                     else:
@@ -169,7 +201,7 @@ def run_gui():
             error_msg = '\n'.join(['Error in code (please reach out to admin: ', str(E.__class__), str(E.__str__())])
             # raise E
             current_window.close()
-            current_window = generate_post_error_intro_window(project_name_, error_msg)
+            current_window = generate_post_error_intro_window(project_name_, error_msg, **values)
             # event, values = current_window.read()
             continue
 
@@ -301,13 +333,13 @@ def try_out_query_params_values_and_types(search, max_rec_dep, max_n_tweets, err
 
     return error_status, error_msg
 
-def generate_post_error_intro_window(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered'):
-    layout = generate_post_error_intro_window_layout(project_name_, key_error_msg)
+def generate_post_error_intro_window(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered', **kwargs):
+    layout = generate_post_error_intro_window_layout(project_name_, key_error_msg, **kwargs)
     return sg.Window(name_of_tool, layout)
 
-def generate_post_error_intro_window_layout(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered')->list:
+def generate_post_error_intro_window_layout(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered', **kwargs)->list:
 
-    layout = generate_intro_window_layout(project_name_ )
+    layout = generate_intro_window_layout(project_name_, **kwargs )
     error_msg = get_simple_str_display(key_error_msg, text_colour='red')
 
     layout.insert(1, error_msg)
