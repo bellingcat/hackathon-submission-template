@@ -15,7 +15,7 @@ import os
 def get_user_tweets(user: str, n_tweets:int):
 
 
-
+    
     sns_user = st.TwitterUserScraper(user)
     try:
         sns_generator = sns_user.get_items()
@@ -120,29 +120,34 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
     return user_dict
 
 
-def main(start_user, depth, num_tweets):
+def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_name'):
 
     edges = []
     user_info = {}
-
+    
     global n_tweets
     n_tweets = num_tweets
-
+    print('Getting data via snscrape ...')
     result_dict = start_from_user(start_user, depth, n_tweets)
-
+    print('Searching from user: ...', start_user)
     for user, content in result_dict.items():
         for mentioned in content[1]:
-            edges.append((user, mentioned))
+            print('\tMentioned: ', mentioned)
+            edges.append((user,mentioned))
 
 
     edges_set = set(edges)
     out_edges = []
 
+    print('Iterating over edges: ...')
+    i=1
     for edge in edges:
         if (edge[1], edge[0]) in edges_set:
             out_edges.append(edge)
             try:
                 user_info[edge[0]] = result_dict[edge[0]][2]
+                print(i)
+                i+=1
             except KeyError:
                 continue
 
