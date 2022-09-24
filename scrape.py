@@ -6,6 +6,9 @@ import snscrape.modules.twitter as st
 import multiprocessing
 import itertools
 import pandas as pd
+import datetime
+from pathlib import Path
+import os
 
 
 
@@ -145,24 +148,45 @@ def main(start_user, depth, num_tweets):
 
     edge_attr_dict = {}
     for edge in out_edges:
-        edge_attr_dict[edge] = edges.count(edge)
+        edge_attr_dict[str(edge)] = edges.count(edge)
         
-    len_node_info = len(user_info.keys())
-    unique_nodes = len(set(map(lambda x: x[0], out_edges)))
-
-    user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
-    user_info_pd.to_csv("user_info.csv")
-
 
     
-    with open('edge_list.csv', 'w') as handle:
+    user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
+    user_info_pd.to_csv("user_attributes.csv")
+
+    
+
+    data_path = Path("Data")
+    day = datetime.datetime.now().date().isoformat() + "_"
+    time = str(datetime.datetime.now().hour)+ "-" + str(datetime.datetime.now().minute)
+    
+
+    run_path = data_path / (day + time)
+    print(run_path)
+    os.mkdir(run_path)
+    
+    run_params_dict = {"start user" : start_user,
+                       "recursion depth" : depth,
+                       "number of tweets searched per user": n_tweets}
+
+
+
+    with open((run_path / 'run_info.json'), 'w') as handle:
+        json.dump(run_params_dict, handle)
+    
+    
+    with open((run_path / 'edge_list.csv'), 'w') as handle:
         writer = csv.writer(handle)
         writer.writerows(out_edges)
-    with open('user_info.json', 'w') as handle:
-        json.dump(user_info, handle)
-    
 
-    with open('edge_attributes.json', 'w') as handle:
+    with open((run_path / 'edge_list.json'), 'w') as handle:
+        json.dump(out_edges, handle)
+
+    with open((run_path / 'user_attributes.json'), 'w') as handle:
+        json.dump(user_info, handle)
+
+    with open((run_path / 'edge_attributes.json'), 'w') as handle:
         json.dump(edge_attr_dict, handle)
 
 
