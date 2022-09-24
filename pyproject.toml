@@ -15,6 +15,7 @@ matplotlib = "^3.6.0"
 plotly = "^5.10.0"
 pydot = "^1.4.2"
 scipy = "^1.9.1"
+PySimpleGUI = "^4.60.3"
 
 [tool.poetry.dev-dependencies]
 pyright = "^1.1.255"
