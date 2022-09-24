@@ -277,9 +277,10 @@ def try_out_params_file_cols_and_types(filepath:str)->tuple:
     if (error_status==True or row_error_status==True):
         error_status = True
     
-    #append the row error messages to previous error msg
-    # if row_error_status:
-    #     error_msg = error_msg + '\n' + row_error_msg
+    # controlling error msg length
+    max_error_msg_len = 300
+    if len(error_msg)>max_error_msg_len:
+        error_msg = error_msg[:max_error_msg_len-5] + ' ... (error msg truncated due to length)' 
 
     return error_status, error_msg
 
