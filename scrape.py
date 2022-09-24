@@ -26,15 +26,22 @@ def get_user_tweets(user: str, n_tweets:int):
         return None
     tweets = itertools.islice(sns_generator, n_tweets)
 
-    tweet_ids = map(lambda x: x.id, tweets)
+    
     # tweet_id_list = []
     # for tweet in tweets:
     #     tweet_id_list.append(tweet.id)
-    raw_mentions = map(lambda x: x.mentionedUsers, tweets)
+    # raw_mentions = map(lambda x: x.mentionedUsers, tweets)
 
     #fetching content as well
-    tweet_contents_lst = []
+    tweet_ids, raw_mentions, tweet_contents_lst = [], [], []
+
+    #expanding the retrieval of data from the generator as calling it
+    #repeatedly exhausts it and we are losing data 
     for t in tweets:
+        raw_mentions.append(t.mentionedUsers)
+        tweet_ids.append(t.id)
+
+        #tw_dict is for text
         tw_dict = {}
         try:
             tw_dict['tweet_id'] = t.id
@@ -47,6 +54,8 @@ def get_user_tweets(user: str, n_tweets:int):
             tw_dict['tweet_text'] = np.NaN            
         
         tweet_contents_lst.append(tw_dict)
+
+    # tweet_ids = list(map(lambda x: x.id, tweets))
 
     mentions = []
     try:
@@ -78,7 +87,7 @@ def get_user_tweets(user: str, n_tweets:int):
         else:
             user_info = {"potentially_banned": True}
 
-    return (list(tweet_ids), mentions, user_info, tweet_contents_lst)
+    return (tweet_ids, mentions, user_info,  tweet_contents_lst)
 
 
 
