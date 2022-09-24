@@ -215,6 +215,7 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
         edge_attr_dict[str(edge)] = edges.count(edge)
         
 
+    
 
     #tweet text content being turned to dataframe and then saved as well
     tweet_text_df = pd.DataFrame(tweet_contents_lst)
