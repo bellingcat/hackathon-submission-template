@@ -397,13 +397,8 @@ def process_filename(x:str)->str:
         str: cleaned version
     """    
 
-    x = x.replace('\\', '')
-    x = x.replace('/', '')
-    x = x.replace('.', '')
-    x = x.replace('*', '')
-    x = x.replace('\\', '')
-    x = x.replace(' ', '_')
     x = re.subn(r'[`$&+,:;=?@#|\'<>.^*()%!\-]', '', x)[0]
+    x = x.replace(' ', '')
 
     return x
 
