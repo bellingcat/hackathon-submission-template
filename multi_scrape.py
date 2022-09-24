@@ -16,7 +16,7 @@ def get_mentioned_users(x_content:str)->list:
 
     return get_mentioned_users
 
-def get_user_tweets(user: str):
+def get_user_tweets(user: str, n_tweets:int):
 
 
 
@@ -80,8 +80,8 @@ def iteration(args):
 
     Returns: set of all newly found users
     """
-    user, user_dict = args[0], args[1]
-    dict_update = get_user_tweets(user)
+    user, user_dict, n_tweets = args[0], args[1], args[2]
+    dict_update = get_user_tweets(user, n_tweets)
 
     if not dict_update:
         return None
@@ -99,7 +99,7 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
 
     visited_users = set(user)
     
-    result = iteration((user, user_dict))
+    result = iteration((user, user_dict, n_tweets))
     new_users = set(result[0])
     user_dict[user] = result[1][1]
     users_to_update_with = set()
@@ -119,7 +119,7 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
         # print(type(visited_users))
         new_users = new_users.difference(visited_users)
 
-        data = [(sub_user, user_dict) for sub_user in new_users if sub_user]
+        data = [(sub_user, user_dict, n_tweets) for sub_user in new_users if sub_user]
 
         result = pool.map(iteration, data)
 

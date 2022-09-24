@@ -324,8 +324,8 @@ def run_network_analysis(**kwargs):
 
     # now pass the arguments forward to the TANV tool
     main_user = kwargs['-TWITTER-SEARCH-USER-']
-    max_rec_dep = kwargs['-MAX-REC-DEPTH-']
-    max_n_tweets = kwargs['-MAX-N-TWEETS-']
+    max_rec_dep = int(kwargs['-MAX-REC-DEPTH-'])
+    max_n_tweets = int(kwargs['-MAX-N-TWEETS-'])
 
     df = TANV.main(main_user, max_rec_dep, max_n_tweets)
 
