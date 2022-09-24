@@ -223,22 +223,35 @@ def run_gui():
                         # so pass forward
                         results = []
                         query_df = get_query_df(filepath_selected)
-                        for i, row in query_df.iterrows():
-                            #  pass each row over to the wrapper_fn for TANV.main()
-                            # which should call and store the results, then aggregate them all
-                            # NOTE UNCOMMENT when ready to start testing multiple queries at once
-                            # results.append(run_network_analysis(row))
-                            print(i)
-                            time.sleep(1)
-                            update_val = 100*(i+1)/len(query_df)
-                            text_update = f"Executed {i+1} out of {len(query_df)} queries"
-                            current_window['-PROG-BAR-DISPLAY-'].update(text_update)
-                            current_window['-PROG-BAR-'].update(update_val)
-                            current_window.refresh()
+                        try:
+                            for i, row in query_df.iterrows():
+                                #  pass each row over to the wrapper_fn for TANV.main()
+                                # which should call and store the results, then aggregate them all
+                                # the run_network_analysis returns the following data files (and filepath)
+                                # run_path, run_params_dict, out_edges, user_info, edge_attr_dict
+                                results.append(run_network_analysis(row, save=False))
+                                print(i)
+                                time.sleep(1)
+                                update_val = 100*(i+1)/len(query_df)
+                                text_update = f"Executed {i+1} out of {len(query_df)} queries"
+                                current_window['-PROG-BAR-DISPLAY-'].update(text_update)
+                                current_window['-PROG-BAR-'].update(update_val)
+                                current_window.refresh()
+                        except Exception as E:
+                            error_msg = '\n'.join(['Error in code (please reach out to admin: ', str(E.__class__), str(E.__str__())])
+                            results = aggregate_all_the_results(results, save=True)
+                            current_window.close()
+                            current_window = generate_post_error_intro_window(project_name_, 
+                                                                            f"""Error occurred while running multiple queries. Nr of queries run successfully = {i}:
+                                                                            Saving partial data recovered to {results[0]}. Saving remaining queries for future inside
+                                                                            {results[0]}/remaining_queries.csv"""
+                                                                            )
+                            query_remain = query_df.iloc[i:]
+                            query_remain.to_csv(f'{results[0]}/remaining_queries.csv')
+                            continue
 
-
-                        # concatenate the results
-                        results_df = pd.concat(results, ignore_index=True)
+                        # add all the results together and then save them
+                        results = aggregate_all_the_results(results, save=True)
 
                         # and output them to a useful location
 
@@ -262,10 +275,10 @@ def run_gui():
                     else:
                         # if no error returned then now do the network analysis
                         print("Running single query ...")
-                        run_network_analysis(**values)
+                        run_path, run_params_dict, out_edges, user_info, edge_attr_dict = run_network_analysis(**values)
                         #then show success window:
                         current_window.close()
-                        current_window = generate_success_window(project_name_, 'Successfully retrieved snscrape data', **values)
+                        current_window = generate_success_window(project_name_, f'Successfully retrieved snscrape data.\nStored in {run_path}', **values)
                         continue
 
             # NOTE: here I am just adding suggestions for other things to implement
@@ -330,6 +343,10 @@ def run_gui():
             continue
 
 
+
+    return
+
+def aggregate_all_the_results():
 
     return
 
@@ -565,7 +582,7 @@ def process_filename(x:str)->str:
     """    
     x = x.strip()
     x = re.subn(r'[`$&+,:;=?@#|\'<>.^*()%!\-]', '', x)[0]
-    x = x.replace(' ', '')
+    x = x.replace(' ', '_')
 
     return x
 

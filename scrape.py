@@ -120,7 +120,20 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
     return user_dict
 
 
-def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_name'):
+def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_name', save:bool=True)->tuple:
+    """Main wrapper for using snscrape; retrieves data, stores the edge and user data 
+    inside dataframes and jsons. Returns a tuple with the folder path to where the 
+    data was saved and the dataframe itself
+
+    Args:
+        start_user (str): _description_
+        depth (int): _description_
+        num_tweets (int): _description_
+        project_name (str, optional): _description_. Defaults to 'Project_name'.
+
+    Returns:
+        tuple: path to output folder, dataframe
+    """    
 
     edges = []
     user_info = {}
@@ -162,24 +175,29 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
 
     
 
-    data_path = Path("Data")
+    data_path = Path(f"Data/{project_name}/")
     day = datetime.datetime.now().date().isoformat() + "_"
     time = str(datetime.datetime.now().hour)+ "-" + str(datetime.datetime.now().minute)
     
 
     run_path = data_path / (day + time)
-    print(run_path)
-    os.mkdir(run_path)
+    print('Saving data inside ', run_path)
+    os.makedirs(run_path)
     
     run_params_dict = {"start user" : start_user,
                        "recursion depth" : depth,
                        "number of tweets searched per user": n_tweets}
 
 
+    if save:
+        save_query_results(run_path, run_params_dict, out_edges, user_info, edge_attr_dict)
+
+    return run_path, run_params_dict, out_edges, user_info, edge_attr_dict
+
+def save_query_results(run_path:str, run_params_dict:dict, out_edges, user_info, edge_attr_dict):
 
     with open((run_path / 'run_info.json'), 'w') as handle:
         json.dump(run_params_dict, handle)
-    
     
     with open((run_path / 'edge_list.csv'), 'w') as handle:
         writer = csv.writer(handle)
