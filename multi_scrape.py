@@ -12,9 +12,11 @@ import os
 from tempenv import TemporaryEnvironment
 
 
+def get_mentioned_users(x_content:str)->list:
 
+    return get_mentioned_users
 
-def get_user_tweets(user: str):
+def get_user_tweets(user: str, n_tweets:int):
 
 
 
@@ -27,7 +29,7 @@ def get_user_tweets(user: str):
     tweets = itertools.islice(sns_generator , n_tweets)
 
     tweet_ids = map(lambda x: x.id, tweets)
-
+    
     raw_mentions = map(lambda x: x.mentionedUsers, tweets)
     mentions = []
     try:
@@ -78,8 +80,8 @@ def iteration(args):
 
     Returns: set of all newly found users
     """
-    user, user_dict = args[0], args[1]
-    dict_update = get_user_tweets(user)
+    user, user_dict, n_tweets = args[0], args[1], args[2]
+    dict_update = get_user_tweets(user, n_tweets)
 
     if not dict_update:
         return None
@@ -97,7 +99,7 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
 
     visited_users = set(user)
     
-    result = iteration((user, user_dict))
+    result = iteration((user, user_dict, n_tweets))
     new_users = set(result[0])
     user_dict[user] = result[1][1]
     users_to_update_with = set()
@@ -117,7 +119,7 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
         # print(type(visited_users))
         new_users = new_users.difference(visited_users)
 
-        data = [(sub_user, user_dict) for sub_user in new_users if sub_user]
+        data = [(sub_user, user_dict, n_tweets) for sub_user in new_users if sub_user]
 
         result = pool.map(iteration, data)
 
@@ -135,22 +137,16 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
         users_to_update_with = set()
 
     return user_dict
-if __name__ == "__main__":
-    # if sys.argv[3] == 'method1':
-    #     method1()
-    # elif sys.argv[3] == 'method2':
-    #     method2()
-    # else:
-    #     print("Invalid argument")
-    
 
-    start_user = sys.argv[1]
-    depth = int(sys.argv[2])
-    global n_tweets
-    n_tweets = int(sys.argv[3])
+
+def main(start_user, depth, num_tweets):
 
     edges = []
     user_info = {}
+
+    global n_tweets
+    n_tweets = num_tweets
+
     result_dict = start_from_user(start_user, depth, n_tweets)
     for user, content in result_dict.items():
         for mentioned in content[1]:
@@ -188,4 +184,64 @@ if __name__ == "__main__":
     environment["R_LIBS_USER"] = os.getcwd() + "/R_libraries"
     with TemporaryEnvironment(environment):
         retcode = subprocess.call("R < network_analysis_tool.R --no-save", shell=True)
+
+    return user_info_pd
+
+if __name__ == "__main__":
+
+    # if sys.argv[3] == 'method1':
+    #     method1()
+    # elif sys.argv[3] == 'method2':
+    #     method2()
+    # else:
+    #     print("Invalid argument")
+    
+
+    start_user = sys.argv[1]
+    depth = int(sys.argv[2])
+    global n_tweets
+    n_tweets = int(sys.argv[3])
+
+    main(start_user, depth, n_tweets)
+
+    # edges = []
+    # user_info = {}
+
+    # result_dict = start_from_user(start_user, depth, n_tweets)
+    # for user, content in result_dict.items():
+    #     for mentioned in content[1]:
+    #         edges.append((user,mentioned))
+
+    # col_a = set(list(map(lambda x: x[0], edges)))
+
+    # edges_set =  set(edges)
+    # out_edges = []
+
+
+    # for edge in edges:
+    #     if (edge[1], edge[0]) in edges_set:
+    #         out_edges.append(edge)
+    #         try:
+    #             user_info[edge[0]] = result_dict[edge[0]][2]
+    #         except KeyError:
+    #             continue
+
+    # len_node_info = len(user_info.keys())
+    # unique_nodes = len(set(map(lambda x: x[0], out_edges)))
+    # print(f"{unique_nodes} unique users in edgelist and {len_node_info} counts of node information")
+
+    # user_info_pd = pd.DataFrame.from_dict(user_info, orient = "index")
+    # user_info_pd.to_csv("user_info.csv")
+
+
+    # with open('edge_list.csv', 'w') as handle:
+    #     writer = csv.writer(handle)
+    #     writer.writerows(out_edges)
+    # with open('user_info.json', 'w') as handle:
+    #     json.dump(user_info, handle)
+
+    # environment = os.environ              
+    # environment["R_LIBS_USER"] = os.getcwd() + "/R_libraries"
+    # with TemporaryEnvironment(environment):
+    #     retcode = subprocess.call("R < network_analysis_tool.R --no-save", shell=True)
 
