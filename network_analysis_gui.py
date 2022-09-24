@@ -269,12 +269,18 @@ def run_gui():
                 continue
 
 
-            elif event=='':
+            elif event=='-RUN-ANALYSIS-':
                 #trigger events for rerunning the analysis component of scrape
-                # get the user file
+                # get the user file and the edge list
+                error_status, error_msg = test_filepaths(values['-USER-INFO-FILE-'], values['-USER-INFO-FILE-'])
+                if error_status==True:
+                    # include a trigger for an erroneous trigger/event/input
+                    current_window.close()
+                    current_window = generate_post_error_analysis_window(project_name_, error_msg, **values)
+                    continue
 
-                #get the edge list
-
+                fpath_users = values['-USER-INFO-FILE-']
+                fpath_users = values['-USER-INFO-FILE-']
                 #pass to analysis function
 
                 # rerun_analysis_on_data_stored_locally(**values)
@@ -303,6 +309,38 @@ def run_gui():
 
     return
 
+def test_filepaths(file_ends:tuple = ('.csv', '.xlsx'), *args):
+
+    for fpath in args:
+        error_status, error_msg = check_file_ends(fpath, file_ends)
+
+    return error_status, error_msg
+
+def check_fpath_and_return_error_msg(fpath:str, error_status:bool=False, error_msg:str='')->tuple:
+    
+    if os.path.exists(fpath)==False:
+        error_status=True
+        error_msg += f'\n--File could not be found'
+        return error_status, error_msg
+
+    return error_status, error_msg
+
+def check_file_ends(fpath:str, file_endings:tuple, error_status:bool=False, error_msg:str='')->tuple:
+
+    for ending in file_endings:
+        error_status, error_msg = check_file_ending(fpath, ending, error_status, error_msg)
+
+    return error_status, error_msg
+
+def check_file_ending(fpath:str, ending:str, error_status:bool=False, error_msg:str='')->tuple:
+
+    if fpath.endswith(ending)==False:
+        error_status=True
+        error_msg += f'\n--Query not of expected file type ({ending}).'
+        return error_status, error_msg
+
+    return error_status, error_msg
+
 def try_out_params_file_cols_and_types(filepath:str)->tuple:
     """Function checks the input file of search parameters and 
     1. Checks for file existence
@@ -318,16 +356,17 @@ def try_out_params_file_cols_and_types(filepath:str)->tuple:
     """    
     error_status, error_msg = False, 'ERROR : '
 
-    if os.path.exists(filepath)==False:
-        error_status=True
-        error_msg += f'\n--File could not be found'
-        return error_status, error_msg
+    error_status, error_msg = check_fpath_and_return_error_msg(filepath, error_status, error_msg)
+    # if os.path.exists(filepath)==False:
+    #     error_status=True
+    #     error_msg += f'\n--File could not be found'
+    #     return error_status, error_msg
 
-    
-    if (filepath.endswith('csv') or filepath.endswith('xlsx'))==False:
-        error_status=True
-        error_msg += f'\n--Query file needs to be either a CSV or XLSX file'
-        return error_status, error_msg
+    error_status, error_msg = check_file_ends(filepath, ('.csv', '.xlsx'), error_status, error_msg)
+    # if (filepath.endswith('csv') or filepath.endswith('xlsx'))==False:
+    #     error_status=True
+    #     error_msg += f'\n--Query file needs to be either a CSV or XLSX file'
+    #     return error_status, error_msg
 
 
     try:
