@@ -181,8 +181,6 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
         
 
     
-    user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
-    user_info_pd.to_csv("user_attributes.csv")
 
     
 
@@ -199,6 +197,9 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
                        "recursion depth" : depth,
                        "number of tweets searched per user": n_tweets}
 
+    print('Saving data to local files')
+
+    user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
 
     if save:
         save_query_results(run_path, run_params_dict, out_edges, user_info, edge_attr_dict)
