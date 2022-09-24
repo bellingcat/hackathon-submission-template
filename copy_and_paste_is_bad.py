@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 import networkx as nx
 
 
-def plot_graph(graph, pos):
+def plot_network(graph, pos):
     G = graph
 
     #create edge loc lists
