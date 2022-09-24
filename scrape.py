@@ -9,7 +9,7 @@ import pandas as pd
 import datetime
 from pathlib import Path
 import os
-
+import numpy as np
 
 
 def get_user_tweets(user: str, n_tweets:int):
@@ -26,6 +26,15 @@ def get_user_tweets(user: str, n_tweets:int):
     tweet_ids = map(lambda x: x.id, tweets)
 
     raw_mentions = map(lambda x: x.mentionedUsers, tweets)
+
+    #fetching content as well
+    tweet_contents_lst = []
+    for t in tweets:
+        try:
+            tweet_contents_lst.append(t.content)
+        except (ScraperException, AttributeError):
+            tweet_contents_lst.append(np.NaN)
+
     mentions = []
     try:
         for i in raw_mentions:
@@ -49,12 +58,13 @@ def get_user_tweets(user: str, n_tweets:int):
                          "#posts": user_result.statusesCount,
                          "#friends": user_result.friendsCount,
                          "#favourites": user_result.favouritesCount,
-                         "location": user_result.location
+                         "location": user_result.location,
+                         
                          }
         else:
             user_info = {"potentially_banned": True}
 
-    return (list(tweet_ids), mentions, user_info)
+    return (list(tweet_ids), mentions, user_info, tweet_contents_lst)
 
 
 
@@ -78,8 +88,9 @@ def iteration(args):
         return None
 
     new_users = dict_update[1]
+    tweet_contents = dict_update[3]
 
-    return (new_users, (user, dict_update))
+    return (new_users, (user, dict_update), tweet_contents)
 
 
 def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
