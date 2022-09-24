@@ -123,6 +123,7 @@ please click on 'RERUN ANALYSIS' to open separate menu.""",
                     ]
     return layout   
 
+
 def add_progress_bar_into_layout(layout:list, loc:int=-2, key:str='-PROG-BAR-', max_val:int=100)->list:
     """Adds an empty progress bar to the menu, in the 2nd from last position (Default)
 
@@ -241,6 +242,11 @@ def run_gui():
 
                         # and output them to a useful location
 
+                        #then show success window:
+                        current_window.close()
+                        current_window = generate_success_window(project_name_, 'Successfully retrieved snscrape data', **values)
+                        continue
+
                 else:
                     # in the case where they use section A instead and just do a single query
                     #first check the inputs and display an error msg in case any are wrong
@@ -257,6 +263,10 @@ def run_gui():
                         # if no error returned then now do the network analysis
                         print("Running single query ...")
                         run_network_analysis(**values)
+                        #then show success window:
+                        current_window.close()
+                        current_window = generate_success_window(project_name_, 'Successfully retrieved snscrape data', **values)
+                        continue
 
             # NOTE: here I am just adding suggestions for other things to implement
             # e.g. if a user wants to run the analysis component again on data that was already stored,
@@ -485,6 +495,11 @@ def try_out_query_params_values_and_types(search, max_rec_dep, max_n_tweets, err
 
     return error_status, error_msg
 
+def generate_success_window(project_name_:str = f'{name_of_tool} project', msg:str='Successfully retrieved snsscrape data', **kwargs):
+    layout = generate_success_intro_window_layout(project_name_, msg, **kwargs)
+    return sg.Window(name_of_tool, layout)
+
+
 def generate_post_error_intro_window(project_name_:str = f'{name_of_tool} project', key_error_msg:str='Insufficient/Incorrect type of value entered', **kwargs):
     layout = generate_post_error_intro_window_layout(project_name_, key_error_msg, **kwargs)
     return sg.Window(name_of_tool, layout)
@@ -499,6 +514,14 @@ def generate_post_error_analysis_window_layout(project_name_:str = f'{name_of_to
     error_msg = get_simple_str_display(key_error_msg, text_colour='red')
 
     layout.insert(1, error_msg)
+
+    return layout
+
+def generate_success_intro_window_layout(project_name_:str = f'{name_of_tool} project', msg:str='Successfully rerieved snscrape data', **kwargs):
+    layout = generate_intro_window_layout(project_name_, **kwargs )
+    success_msg = get_simple_str_display(msg, text_colour='green')
+
+    layout.insert(1, success_msg)
 
     return layout
 
