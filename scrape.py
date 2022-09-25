@@ -41,18 +41,23 @@ def get_user_tweets(user: str, n_tweets:int):
         raw_mentions.append(t.mentionedUsers)
         tweet_ids.append(t.id)
 
+
         #tw_dict is for text
         tw_dict = {}
         try:
             tw_dict['tweet_id'] = t.id
+            tw_dict['datetime'] = t.date
+            tw_dict['display_name'] = t.date
         except (ScraperException, AttributeError):
             tw_dict['tweet_id'] = np.nan
             tw_dict['tweet_text'] = np.NaN
+            tw_dict['datetime'] = np.NaN
         try:
             tw_dict['tweet_text'] = t.content
         except (ScraperException, AttributeError):
             tw_dict['tweet_text'] = np.NaN            
         
+        tw_dict['User_id'] = np.NaN
         tweet_contents_lst.append(tw_dict)
 
     # tweet_ids = list(map(lambda x: x.id, tweets))
@@ -84,8 +89,14 @@ def get_user_tweets(user: str, n_tweets:int):
                          #adding a timestamp as well so that a researcher can identify the the metadata at time x
                          "time_of_search" : time_of_search,
                          }
+
+            for sub_d in tweet_contents_lst:
+                sub_d['User_id'] = user_result.id
         else:
             user_info = {"potentially_banned": True}
+
+    for sub_d in tweet_contents_lst:
+        sub_d['display_name'] = user
 
     return (tweet_ids, mentions, user_info,  tweet_contents_lst)
 
@@ -127,6 +138,8 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
     user_dict[user] = result[1][1]
     users_to_update_with = set()
 
+    tweet_contents = result[2]
+
     i = 0
     pool = multiprocessing.Pool(processes=12)
     while i < max_it:
@@ -138,6 +151,9 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
         data = [(sub_user, n_tweets) for sub_user in new_users if sub_user]
 
         result = pool.map(iteration, data)
+
+        #get text content
+        # other_user_tweet_contents = result[2]
 
         visited_users.update(new_users)
         
@@ -151,7 +167,11 @@ def start_from_user(user: str, max_it: int = 1, n_tweets: int = 100):
             [user for user_list in users_to_update_with for user in user_list if user])
         users_to_update_with = set()
 
-    return user_dict
+        # tweet_contents.extend(other_user_tweet_contents)
+
+    
+
+    return user_dict, tweet_contents
 
 
 def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_name', save:bool=True)->tuple:
@@ -175,24 +195,21 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
     global n_tweets
     n_tweets = num_tweets
     print('Getting data via snscrape ...')
-    result_dict = start_from_user(start_user, depth, n_tweets)
+    result_dict, tweet_contents = start_from_user(start_user, depth, n_tweets)
 
-    tweet_contents_lst = []
     print('Searching from user: ...', start_user)
     for user, content in result_dict.items():
         for mentioned in content[1]:
             print('\tMentioned: ', mentioned)
             edges.append((user,mentioned))
 
-        # get the usr ID too 
-        user_id = content[2]['id']
 
-        # iterate over the tweets and content as well
-        for  tweet_sub_dict in content[3]:
-            #make sur we have the id as well
-            tweet_sub_dict['User'] = user
-            tweet_sub_dict['User_id'] = user_id
-            tweet_contents_lst.append(tweet_sub_dict)
+        # # iterate over the tweets and content as well
+        # for  tweet_sub_dict in content[3]:
+        #     #make sur we have the id as well
+        #     tweet_sub_dict['User'] = user
+        #     tweet_sub_dict['User_id'] = user_id
+        #     tweet_contents_lst.append(tweet_sub_dict)
 
 
     edges_set = set(edges)
@@ -218,12 +235,13 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
     
 
     #tweet text content being turned to dataframe and then saved as well
-    tweet_text_df = pd.DataFrame(tweet_contents_lst)
+    tweet_text_df = pd.DataFrame(tweet_contents)
     
 
+    #creating the filepath for the outputs
     data_path = Path(f"Data/{project_name}/")
     day = dt.datetime.now().date().isoformat() + "_"
-    time = str(dt.datetime.now().hour)+ "-" + str(dt.datetime.now().minute) + str(dt.datetime.now().second)
+    time = "-".join([str(dt.datetime.now().hour),  str(dt.datetime.now().minute), str(dt.datetime.now().second)])
     
 
     run_path = data_path / (day + time)
@@ -234,10 +252,10 @@ def main(start_user:str, depth:int, num_tweets:int, project_name:str='Project_na
                        "recursion depth" : depth,
                        "number of tweets searched per user": n_tweets}
 
-    tweet_text_fpath = '/'.join([str(run_path), 'tweet_text.csv'])
+    tweet_text_fpath = str(run_path / 'tweet_text.csv')
     tweet_text_df.to_csv(tweet_text_fpath)
 
-    user_info_fpath = '/'.join([str(run_path), "user_attributes.csv"])
+    user_info_fpath = str(run_path / "user_attributes.csv")
     user_info_pd = pd.DataFrame.from_dict(user_info, orient="index")
     user_info_pd.to_csv(user_info_fpath)
 
